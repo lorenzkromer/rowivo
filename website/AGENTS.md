@@ -13,5 +13,7 @@
 - Before deployment/domain/infrastructure work, read
   `/Users/lorenz/development/kromerlorenz-infrastructure/AUFNAHME.md` and follow
   its registration procedure. Infrastructure changes must be announced first.
-  This directory currently only prepares the image; no production stack exists
-  as part of this change.
+  `.github/workflows/website.yml` validates, builds and scans the linux/amd64
+  image, pushes `ghcr.io/lorenzkromer/rowivo-website` (SHA and latest), then
+  dispatches `rowivo-image-pushed` to the infrastructure repository.
+  The platform owns the production stack, deployment and monitoring.

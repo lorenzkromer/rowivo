@@ -87,8 +87,22 @@ werden durch nginx auf die entsprechenden Sprachseiten umgeleitet. Für einen
 anderen statischen Host sind diese Redirects gesondert zu konfigurieren; die
 sechs vollständigen Inhalts-URLs funktionieren unabhängig davon.
 
-**Noch nicht veröffentlicht.** Domain, Image-Push, CI und Infrastruktur wurden
-nicht verändert. Vor Aufnahme in den Betrieb ist
+Der Image-Build und die Übergabe an die Plattform sind in
+`../.github/workflows/website.yml` eingerichtet. Bei Änderungen an `website/**`
+oder am Workflow auf `main` (sowie manuell per `workflow_dispatch`) laufen zuerst
+`npm ci`, `npm run check` und `npm run build`. Danach wird das linux/amd64-Image
+gebaut und mit Trivy auf behebbare HIGH/CRITICAL-Schwachstellen geprüft.
+Nur nach erfolgreicher Prüfung wird genau dieses Image nach
+`ghcr.io/lorenzkromer/rowivo-website` mit Commit-SHA und `latest` gepusht.
+`INFRASTRUCTURE_DISPATCH_TOKEN` ist ein Repository-Secret. Der anschließende
+Dispatch an `lorenzkromer/kromerlorenz-infrastructure` heißt
+`rowivo-image-pushed` und übergibt `sha`, `ref`, `actor` und `run_id`.
+App-Änderungen allein lösen keinen Website-Build aus.
+
+Der Produktionsbetrieb mit Stack, TLS, Deploy und Monitoring liegt auf der
+Plattform `kromerlorenz-infrastructure`. Den tatsächlichen Betriebsstatus führt
+deren `HOSTS.md`; ein erfolgreicher Image-Build bestätigt noch keinen Deploy.
+Für Aufnahme und Änderungen am Betrieb ist
 `/Users/lorenz/development/kromerlorenz-infrastructure/AUFNAHME.md` maßgeblich:
 Stack, HOSTS-Zuordnung, Image-/Deploy-Workflow, TLS, Bestandsverzeichnis und
 Übersicht; Monitoring-Probe erst nach erfolgreichem Deploy. Öffentlich ohne

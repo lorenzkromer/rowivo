@@ -26,3 +26,14 @@ Settings reconciled on 2026-09-03: Rowivo app team `AYPXYQ7R9Z`, bundle identifi
 `at.kromerlorenz.rowivo`, iPhone only, iOS 18+, Mac Catalyst / Designed for Mac /
 Designed for Vision disabled, version `0.1.0`, build `1`. Future explicit user
 changes take precedence; update both the project and its template accordingly.
+
+## Hosting
+
+Diese Anwendung wird auf der Plattform `kromerlorenz-infrastructure`
+betrieben (Repository: https://github.com/lorenzkromer/kromerlorenz-infrastructure,
+lokal unter `/Users/lorenz/development/kromerlorenz-infrastructure`).
+
+Bevor du Deployment, Domain, Login, Datenhaltung oder Abschaltung anfasst:
+`AUFNAHME.md` in jenem Repository lesen und die dort genannten Meldestellen im
+**selben** Arbeitsschritt bedienen. Der Betrieb wird dort dokumentiert, nicht
+hier.
