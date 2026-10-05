@@ -1,0 +1,9 @@
+today-de.webp ← docs/screenshots/today-de.png
+today-en.webp ← docs/screenshots/today-en.png
+plan-de.webp ← docs/screenshots/plan-de.png
+plan-en.webp ← docs/screenshots/plan-en.png
+workout-de.webp ← docs/screenshots/workout-de.png
+workout-en.webp ← docs/screenshots/workout-en.png
+history-de.webp ← docs/screenshots/review-plan-actual-de.png
+history-en.webp ← docs/screenshots/review-plan-actual-en.png
+Social cards: original Rowivo typography and vector artwork.

@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://rowivo.kromerlorenz.at/sitemap.xml

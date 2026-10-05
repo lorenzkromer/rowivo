@@ -1,0 +1,29 @@
+{
+  "name": "rowivo-website",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "scripts": {
+    "dev": "astro dev --host 127.0.0.1",
+    "build": "astro build && node scripts/verify.mjs",
+    "preview": "astro preview --host 127.0.0.1",
+    "verify": "node scripts/verify.mjs",
+    "check": "astro check",
+    "check:browser": "node scripts/check-browser.mjs",
+    "assets": "node scripts/prepare-assets.mjs"
+  },
+  "dependencies": {
+    "astro": "7.2.2"
+  },
+  "devDependencies": {
+    "@astrojs/check": "^0.9.10",
+    "@playwright/test": "^1.63.0",
+    "prettier": "^3.9.9",
+    "prettier-plugin-astro": "^1.0.1",
+    "sharp": "^0.35.4",
+    "typescript": "^6.0.3"
+  }
+}

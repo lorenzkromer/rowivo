@@ -1,0 +1,7 @@
+node_modules
+dist
+.astro
+artifacts
+tests
+test-results
+playwright-report

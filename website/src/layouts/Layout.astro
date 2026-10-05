@@ -1,0 +1,124 @@
+---
+import '../styles/global.css';
+import Mark from '../components/Mark.astro';
+import { BUSINESS } from '../data/business';
+import { site, routes, type Language, type Page } from '../data/site';
+interface Props {
+  lang: Language;
+  page: Page;
+  title: string;
+  description: string;
+  noindex?: boolean;
+}
+const { lang, page, title, description, noindex = false } = Astro.props;
+const de = lang === 'de';
+const canonical = site + routes[page][lang];
+---
+
+<!doctype html>
+<html lang={lang}>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#f6f6ef" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    {noindex && <meta name="robots" content="noindex" />}
+    <link rel="canonical" href={canonical} />
+    <link rel="alternate" hreflang="de" href={site + routes[page].de} />
+    <link rel="alternate" hreflang="en" href={site + routes[page].en} />
+    <link rel="alternate" hreflang="x-default" href={site + routes[page].de} />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Rowivo" />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:locale" content={de ? 'de_AT' : 'en_GB'} />
+    <meta property="og:image" content={`${site}/images/social-${lang}.png`} />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta
+      property="og:image:alt"
+      content={
+        de
+          ? 'Rowivo — Dein Rudertraining. Dein Rhythmus.'
+          : 'Rowivo — Your rowing. Your rhythm.'
+      }
+    />
+    <meta name="twitter:card" content="summary_large_image" />
+  </head>
+  <body>
+    <a class="skip-link" href="#main">
+      {de ? 'Zum Inhalt' : 'Skip to content'}
+    </a>
+    <header class="site-header wrap">
+      <a
+        href={routes.home[lang]}
+        class="brand"
+        aria-label={de ? 'Rowivo Startseite' : 'Rowivo home'}
+      >
+        <Mark />
+        rowivo<span class="brand-dot">.</span>
+      </a>
+      <nav
+        class="main-nav"
+        aria-label={de ? 'Hauptnavigation' : 'Main navigation'}
+      >
+        <a href={`${routes.home[lang]}#discover`}>
+          {de ? 'Die App' : 'The app'}
+        </a>
+        <a href={`${routes.home[lang]}#questions`}>
+          {de ? 'Fragen & Kontakt' : 'Help & contact'}
+        </a>
+      </nav>
+      <nav class="language-switch" aria-label={de ? 'Sprache' : 'Language'}>
+        <a
+          href={routes[page].de}
+          lang="de"
+          hreflang="de"
+          aria-current={de ? 'page' : undefined}
+          aria-label="Deutsch"
+        >
+          DE
+        </a>
+        <span aria-hidden="true">/</span>
+        <a
+          href={routes[page].en}
+          lang="en"
+          hreflang="en"
+          aria-current={!de ? 'page' : undefined}
+          aria-label="English"
+        >
+          EN
+        </a>
+      </nav>
+    </header>
+    <main id="main">
+      <slot />
+    </main>
+    <footer class="site-footer wrap">
+      <div class="footer-top">
+        <a class="brand" href={routes.home[lang]}>
+          <Mark />
+          rowivo<span class="brand-dot">.</span>
+        </a>
+        <p>
+          {de
+            ? 'In deinem Tempo. Zug um Zug.'
+            : 'At your pace. Stroke by stroke.'}
+        </p>
+      </div>
+      <div class="footer-bottom">
+        <small>
+          © {new Date().getFullYear()} {BUSINESS.name}
+        </small>
+        <nav aria-label={de ? 'Rechtliches und Kontakt' : 'Legal and contact'}>
+          <a href={`mailto:${BUSINESS.email}`}>{de ? 'Kontakt' : 'Contact'}</a>
+          <a href={routes.imprint[lang]}>{de ? 'Impressum' : 'Imprint'}</a>
+          <a href={routes.privacy[lang]}>{de ? 'Datenschutz' : 'Privacy'}</a>
+        </nav>
+      </div>
+    </footer>
+  </body>
+</html>

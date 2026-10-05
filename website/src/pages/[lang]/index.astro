@@ -1,0 +1,230 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import Waves from '../../components/Waves.astro';
+import { copy } from '../../data/copy';
+import { BUSINESS } from '../../data/business';
+import { languages, routes } from '../../data/site';
+export function getStaticPaths() {
+  return languages.map((lang) => ({ params: { lang }, props: { lang } }));
+}
+const { lang } = Astro.props;
+const c = copy[lang];
+---
+
+<Layout lang={lang} page="home" title={c.title} description={c.description}>
+  <section class="hero wrap" aria-labelledby="hero-title">
+    <div class="hero-copy">
+      <p class="eyebrow">
+        <span class="status-dot" />
+        {c.eyebrow}
+      </p>
+      <h1 id="hero-title">
+        {c.heading[0]}
+        <br />
+        <span>{c.heading[1]}</span>
+      </h1>
+      <p class="hero-intro">{c.intro}</p>
+      <p class="availability">{c.availability}</p>
+      <div class="hero-actions">
+        <a class="button" href="#discover">
+          {c.action}
+          <span aria-hidden="true">↗</span>
+        </a>
+        <a class="text-link" href="#questions">
+          {c.secondary}
+        </a>
+      </div>
+      <p class="platform">{c.platform}</p>
+    </div>
+    <div class="hero-visual">
+      <div class="hero-field">
+        <Waves />
+        <span class="field-label" aria-hidden="true">
+          ROW · REST · REPEAT
+        </span>
+      </div>
+      <div class="phone hero-phone">
+        <img
+          src={`/images/today-${lang}.webp`}
+          width="640"
+          height="1391"
+          alt={c.heroAlt}
+          fetchpriority="high"
+        />
+      </div>
+      <div class="floating-note">
+        <span class="note-icon" aria-hidden="true">
+          ↗
+        </span>
+        <div>
+          <strong>{c.note}</strong>
+          <span>{c.noteSmall}</span>
+        </div>
+      </div>
+    </div>
+  </section>
+  <div
+    class="principles wrap"
+    aria-label={lang === 'de' ? 'Das ist Rowivo' : 'This is Rowivo'}
+  >
+    {c.strip.map((text, i) => (
+      <p>
+        <span class="small-number">0{i + 1}</span>
+        {text}
+        <span class="plus" aria-hidden="true">
+          +
+        </span>
+      </p>
+    ))}
+  </div>
+  <section
+    id="discover"
+    class="discover section wrap"
+    aria-labelledby="discover-title"
+  >
+    <div class="section-heading">
+      <div>
+        <p class="eyebrow">{c.discoverLabel}</p>
+        <h2 id="discover-title">{c.discoverHeading}</h2>
+      </div>
+      <p>{c.discoverText}</p>
+    </div>
+    <div class="steps">
+      {c.steps.map((step) => (
+        <article class="step">
+          <div class="step-copy">
+            <p class="eyebrow">{step.label}</p>
+            <h3>{step.title}</h3>
+            <p>{step.text}</p>
+          </div>
+          <div class={`screen-stage stage-${step.image}`}>
+            <div class="phone">
+              <img
+                src={`/images/${step.image}-${lang}.webp`}
+                width="640"
+                height="1391"
+                alt={step.alt}
+                loading="lazy"
+                decoding="async"
+              />
+            </div>
+          </div>
+        </article>
+      ))}
+    </div>
+    <p class="caption">{c.screenshotNote}</p>
+  </section>
+  <section class="connection-band" aria-labelledby="connect-title">
+    <div class="wrap section">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">{c.connectLabel}</p>
+          <h2 id="connect-title">{c.connectHeading}</h2>
+        </div>
+        <p>{c.connectText}</p>
+      </div>
+      <div class="connection-grid">
+        {c.connections.map((item, i) => (
+          <article>
+            <div class="connection-icon" aria-hidden="true">
+              {i === 0 ? (
+                <svg
+                  width="32"
+                  height="32"
+                  viewBox="0 0 32 32"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <path d="m9 8 14 16-7 6V2l7 6L9 24" />
+                </svg>
+              ) : (
+                <svg
+                  width="32"
+                  height="32"
+                  viewBox="0 0 32 32"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <rect x="7" y="7" width="18" height="18" rx="6" />
+                  <path d="M12 7V2h8v5m-8 18v5h8v-5m-4-13v5l3 2" />
+                </svg>
+              )}
+            </div>
+            <p class="eyebrow">{item.tag}</p>
+            <h3>{item.title}</h3>
+            <p>{item.text}</p>
+          </article>
+        ))}
+      </div>
+    </div>
+  </section>
+  <section class="privacy-section section wrap" aria-labelledby="privacy-title">
+    <div>
+      <p class="eyebrow">{c.privacyLabel}</p>
+      <h2 id="privacy-title">{c.privacyHeading}</h2>
+      <p class="body-large">{c.privacyText}</p>
+      <a class="text-link" href={routes.privacy[lang]}>
+        {c.privacyLink}
+        <span aria-hidden="true"> ↗</span>
+      </a>
+    </div>
+    <ul class="privacy-points">
+      {c.privacyPoints.map((point) => (
+        <li>
+          <span aria-hidden="true">✓</span>
+          {point}
+        </li>
+      ))}
+    </ul>
+  </section>
+  <section class="jev-card wrap" aria-labelledby="jev-title">
+    <div class="jev-inner">
+      <div>
+        <p class="eyebrow">{c.jevLabel}</p>
+        <h2 id="jev-title">{c.jevHeading}</h2>
+      </div>
+      <div>
+        <p>{c.jevText}</p>
+        <p class="fine-print">{c.jevDetail}</p>
+      </div>
+    </div>
+  </section>
+  <section
+    id="questions"
+    class="faq-section section wrap"
+    aria-labelledby="faq-title"
+  >
+    <div>
+      <p class="eyebrow">{c.faqLabel}</p>
+      <h2 id="faq-title">{c.faqHeading}</h2>
+    </div>
+    <div class="faq-list">
+      {c.questions.map(([question, answer]) => (
+        <details>
+          <summary>
+            {question}
+            <span aria-hidden="true">+</span>
+          </summary>
+          <p>{answer}</p>
+        </details>
+      ))}
+    </div>
+  </section>
+  <section id="contact" class="contact-section" aria-labelledby="contact-title">
+    <div class="wrap contact-inner">
+      <Waves />
+      <div>
+        <p class="eyebrow">{c.contactLabel}</p>
+        <h2 id="contact-title">{c.contactHeading}</h2>
+        <p>{c.contactText}</p>
+        <a class="contact-email" href={`mailto:${BUSINESS.email}`}>
+          {BUSINESS.email}
+          <span aria-hidden="true"> ↗</span>
+        </a>
+        <p class="fine-print">{c.contactHint}</p>
+      </div>
+    </div>
+  </section>
+</Layout>

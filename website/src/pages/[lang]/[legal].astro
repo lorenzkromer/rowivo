@@ -1,0 +1,154 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import { BUSINESS as b } from '../../data/business';
+import { languages, routes } from '../../data/site';
+import { privacy } from '../../data/privacy';
+export function getStaticPaths() {
+  return languages.flatMap((lang) =>
+    (['imprint', 'privacy'] as const).map((page) => ({
+      params: { lang, legal: routes[page][lang].split('/')[2] },
+      props: { lang, page },
+    })),
+  );
+}
+const { lang, page } = Astro.props;
+const de = lang === 'de';
+const p = privacy[lang];
+const title = page === 'privacy' ? p.title : de ? 'Impressum' : 'Imprint';
+const description =
+  page === 'privacy'
+    ? p.description
+    : de
+      ? 'Anbieter- und Kontaktinformationen der offiziellen Rowivo-Webseite.'
+      : 'Business and contact details for the official Rowivo website.';
+---
+
+<Layout
+  lang={lang}
+  page={page}
+  title={`${title} — Rowivo`}
+  description={description}
+>
+  <article class="legal wrap">
+    <p class="eyebrow">ROWIVO / {de ? 'RECHTLICHES' : 'LEGAL'}</p>
+    <h1>{title}</h1>
+    {page === 'privacy' && (
+      <>
+        <p class="legal-intro">{p.intro}</p>
+        <p class="updated">{p.updated}</p>
+        <nav
+          class="legal-toc"
+          aria-label={de ? 'Inhaltsverzeichnis' : 'Contents'}
+        >
+          <a href="#website">{p.website}</a>
+          <a href="#app">{p.app}</a>
+          <a href="#rights">{p.rights}</a>
+        </nav>
+      </>
+    )}
+    <h2>
+      {page === 'privacy'
+        ? p.controller
+        : de
+          ? 'Angaben zum Unternehmen'
+          : 'Business details'}
+    </h2>
+    <address>
+      <strong>{b.name}</strong>
+      <br />
+      {de ? 'Inhaber' : 'Owner'}: {b.owner.name}
+      <br />
+      {b.address.street}
+      <br />
+      {b.address.postalCode} {b.address.city}
+      <br />
+      {de ? b.address.country : 'Austria'}
+      <br />
+      <a href={`mailto:${b.email}`}>{b.email}</a>
+      <br />
+      <a href={`tel:${b.phone}`}>+43 664 8665200</a>
+    </address>
+    {page === 'imprint' ? (
+      <>
+        <p>
+          {de
+            ? 'Rechtsform: Einzelunternehmen, nicht im Firmenbuch eingetragen.'
+            : 'Legal form: sole proprietorship, not entered in the Austrian commercial register.'}
+          <br />
+          {de
+            ? 'Umsatzsteuer-Identifikationsnummer'
+            : 'VAT identification number'}
+          : {b.vatId}
+        </p>
+        <h2>
+          {de ? 'Gewerbe und Aufsicht' : 'Trade and supervisory authority'}
+        </h2>
+        <p>
+          <strong>{de ? 'Gewerbewortlaut' : 'Registered trade'}:</strong>
+          <br />
+          {b.trade.description}
+          {!de &&
+            ' (services in automatic data processing and information technology)'}
+        </p>
+        <p>
+          <strong>{de ? 'Gewerbebehörde' : 'Trade authority'}:</strong>
+          <br />
+          {b.trade.authority}
+        </p>
+        <p>
+          <strong>{de ? 'Kammerzugehörigkeit' : 'Chamber membership'}:</strong>
+          <br />
+          {b.trade.chamber}
+        </p>
+        <p>
+          <strong>
+            {de
+              ? 'Anwendbare Rechtsvorschrift'
+              : 'Applicable professional regulation'}
+            :
+          </strong>
+          <br />
+          <a href={b.trade.regulation.url}>{b.trade.regulation.name}</a>
+        </p>
+        <h2>
+          {de ? 'Medieninhaber und Ausrichtung' : 'Media owner and purpose'}
+        </h2>
+        <p>
+          {de
+            ? 'Medieninhaber und für den Inhalt verantwortlich ist Lorenz Kromer, erreichbar unter der oben genannten Anschrift. Diese Webseite informiert über die Rudertrainings-App Rowivo, ihre Funktionen, die unterstützten Geräte und Kontaktmöglichkeiten.'
+            : 'The media owner and person responsible for the content is Lorenz Kromer at the address above. This website provides information about the Rowivo rowing training app, its features, supported devices and contact options.'}
+        </p>
+        <p>
+          {de
+            ? 'Anbieterinformationen gemäß § 5 ECG und Offenlegung gemäß § 25 MedienG.'
+            : 'Provider information pursuant to Section 5 of the Austrian E-Commerce Act (ECG) and disclosure pursuant to Section 25 of the Austrian Media Act (MedienG).'}
+        </p>
+        <h2>{de ? 'Inhalte und Marken' : 'Content and trademarks'}</h2>
+        <p>
+          {de
+            ? 'Die Inhalte und App-Abbildungen stammen von Rowivo bzw. Lorenz Kromer. Genannte Produkt- und Markennamen gehören ihren jeweiligen Inhabern. Die Nennung von Apple, Concept2, PM5 oder TypeSafe beschreibt Funktionen und Kompatibilität; sie bedeutet keine offizielle Partnerschaft.'
+            : 'Content and app images are provided by Rowivo and Lorenz Kromer. Product names and trademarks belong to their respective owners. References to Apple, Concept2, PM5 or TypeSafe describe features and compatibility and do not imply an official partnership.'}
+        </p>
+        <p class="updated">{p.updated}</p>
+      </>
+    ) : (
+      <>
+        {p.sections.map((section) => (
+          <section id={'id' in section ? section.id : undefined}>
+            <h2>{section.title}</h2>
+            {section.paragraphs.map((paragraph) => (
+              <p>{paragraph}</p>
+            ))}
+          </section>
+        ))}
+        <p>
+          <a href="https://www.dsb.gv.at/">
+            {de
+              ? 'Österreichische Datenschutzbehörde'
+              : 'Austrian Data Protection Authority'}
+          </a>
+        </p>
+      </>
+    )}
+  </article>
+</Layout>
