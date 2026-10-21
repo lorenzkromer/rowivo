@@ -2,6 +2,36 @@ import XCTest
 
 @MainActor final class RowivoUITests: XCTestCase {
     override func setUpWithError() throws { continueAfterFailure = false }
+    func testJourneyPreviewUnlocksOnlySimulatedPlaces() {
+        let app = launch(seed: true, german: true)
+        reveal(app.buttons["journey.open"], in: app); app.buttons["journey.open"].tap()
+        XCTAssertTrue(app.staticTexts["Deine Ruderreise"].firstMatch.waitForExistence(timeout: 5))
+        capture(app, "Journey map German")
+        reveal(app.buttons["journey.preview"], in: app); app.buttons["journey.preview"].tap()
+        let pause = app.buttons["journey.preview.pause"]
+        XCTAssertTrue(pause.waitForExistence(timeout: 5)); reveal(pause, in: app); pause.tap()
+        app.buttons["journey.preview.next"].tap()
+        XCTAssertTrue(app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "Waldanleger")).firstMatch.exists)
+        capture(app, "Journey landscape German")
+        app.buttons["journey.preview.done"].tap()
+        XCTAssertTrue(app.descendants(matching: .any)["journey.progress"].firstMatch.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "Schilfbucht")).firstMatch.exists)
+    }
+
+    func testLandscapeCanSwitchToMetricsAndPause() {
+        let app = launch(seed: true)
+        app.buttons["dashboard.workout"].tap(); app.buttons["workout.start"].tap()
+        XCTAssertTrue(app.buttons["workout.pause"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Waiting for measured distance"].exists)
+        XCTAssertTrue(app.descendants(matching: .any)["workout.timer"].firstMatch.isHittable)
+        capture(app, "Workout landscape English")
+        app.segmentedControls["journey.mode"].buttons["Metrics"].tap()
+        XCTAssertFalse(app.staticTexts["Waiting for measured distance"].exists)
+        app.segmentedControls["journey.mode"].buttons["Landscape"].tap()
+        app.buttons["workout.pause"].tap()
+        XCTAssertTrue(app.buttons["Continue rowing"].exists)
+    }
+
     func testSavedSessionDeletionOnlyInEditorWithConfirmation() {
         let app = launch(seed: true, german: true)
         app.buttons["dashboard.workout"].tap()

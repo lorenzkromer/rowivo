@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		A00100000000000000000001 /* JourneyView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00100000000000000000002 /* JourneyView.swift */; };
 		077F20EC61DAC18FF7318864 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8DF2EACEF9E54890B9720D92 /* SettingsView.swift */; };
 		24513A55E2246AE778D7B55A /* DesignSystem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 970D038F398FA0631DC1E6BB /* DesignSystem.swift */; };
 		2C004E534AEE9FD2EAB613E0 /* WatchWorkoutView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B683339C0CF4524C1D79817A /* WatchWorkoutView.swift */; };
@@ -94,6 +95,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		A00100000000000000000002 /* JourneyView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JourneyView.swift; sourceTree = "<group>"; };
 		0153ABE6F654C1ABC77010ED /* RowivoWatchUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RowivoWatchUITests.swift; sourceTree = "<group>"; };
 		06036E30B4B539B1562D00CB /* RowivoApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RowivoApp.swift; sourceTree = "<group>"; };
 		157DC5D107C388E17C482117 /* PM5Connection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PM5Connection.swift; sourceTree = "<group>"; };
@@ -160,6 +162,7 @@
 			isa = PBXGroup;
 			children = (
 				AD13D0F84C5FA6263B616DE6 /* ActiveWorkoutView.swift */,
+				A00100000000000000000002 /* JourneyView.swift */,
 				9AED5BFDD1DD119FFDCADE7D /* DashboardView.swift */,
 				ED4D9F106D7A69629523C9A7 /* OnboardingView.swift */,
 				1A6A4339963DFA6468EBA176 /* PlanView.swift */,
@@ -535,6 +538,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				9C571DACBD358430E34A0299 /* ActiveWorkoutView.swift in Sources */,
+				A00100000000000000000001 /* JourneyView.swift in Sources */,
 				4859B13FC79A30E1E5A04147 /* AppState.swift in Sources */,
 				CFCD2EE2CFDC568C0E5F6542 /* ArchiveFiles.swift in Sources */,
 				E6C689B0790D0A9598F13A22 /* DashboardView.swift in Sources */,

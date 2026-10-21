@@ -58,6 +58,7 @@ struct DashboardView: View {
                         Text("Last recorded session").font(.title3.bold())
                         RecordedWorkoutCard(log: log, context: "today") { editingCompletion = log }
                     }
+                    JourneyLink()
                     RowerConnectionCard()
                     if let block = store.currentBlock { blockProgress(block) }
                     if store.nextWorkout != nil { Button(action: openPlan) {

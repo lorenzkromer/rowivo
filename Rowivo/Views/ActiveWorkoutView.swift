@@ -6,6 +6,7 @@ struct ActiveWorkoutView: View {
     @Environment(RowivoStore.self) private var store
     @Environment(\.dismiss) private var dismiss
     var workout: Workout
+    @State private var landscape = true
     @State private var feedback = false
     @State private var confirmEnd = false
     @State private var recordedSeconds = 0
@@ -19,13 +20,25 @@ struct ActiveWorkoutView: View {
                 let paused = store.state.clock?.resumedAt == nil
                 let hasRower = store.rower.isConnected || store.rowerRecording != nil
                 ScrollView {
-                    VStack(spacing: 28) {
+                    VStack(spacing: landscape ? 20 : 28) {
                         VStack(spacing: 9) {
                             Eyebrow(text: paused ? "Paused" : "You showed up").foregroundStyle(RowivoStyle.teal)
                             Text(phase.map { localized(workout.segments[$0.index].kind.rawValue) } ?? localized("Session complete"))
-                                .font(.system(size: 32, weight: .bold, design: .rounded))
+                                .font(.system(size: landscape ? 26 : 32, weight: .bold, design: .rounded))
                             Text(workout.displayName).foregroundStyle(RowivoStyle.muted)
-                        }.padding(.top, 24)
+                        }.padding(.top, landscape ? 8 : 24)
+                        Picker("Training view", selection: $landscape) {
+                            Text("Landscape").tag(true)
+                            Text("Metrics").tag(false)
+                        }.pickerStyle(.segmented).accessibilityIdentifier("journey.mode")
+                        if landscape {
+                            HStack(spacing: 24) {
+                                Metric(value: clockText(min(Int(elapsed), workout.totalSeconds)), label: "Whole workout")
+                                Metric(value: clockText(phase?.remaining ?? 0), label: "Current phase")
+                                    .accessibilityIdentifier("workout.timer")
+                            }
+                            WorkoutJourneyPanel(paused: paused, finished: phase == nil, date: timeline.date)
+                        } else {
                         HStack(spacing: 24) {
                             WorkoutRing(progress: min(1, elapsed / Double(workout.totalSeconds)),
                                         value: clockText(min(Int(elapsed), workout.totalSeconds)), label: "Whole workout", color: RowivoStyle.teal)
@@ -33,13 +46,16 @@ struct ActiveWorkoutView: View {
                                         value: clockText(phase?.remaining ?? 0), label: "Current phase", color: RowivoStyle.clay)
                                 .accessibilityIdentifier("workout.timer")
                         }.padding(.vertical, 8)
+                        }
                         if store.state.automaticallyPaused == true {
                             Text("Auto-paused · row to continue").font(.subheadline).foregroundStyle(RowivoStyle.teal)
                         }
+                        if !landscape {
                         HStack {
                             Metric(value: clockText(workout.totalSeconds), label: "Planned duration")
                             Metric(value: clockText(max(0, workout.totalSeconds - Int(elapsed))), label: "Remaining")
                         }.padding(.horizontal, 30)
+                        }
                         if hasRower { RowerLivePanel() }
                         Surface {
                             HStack(spacing: 14) {

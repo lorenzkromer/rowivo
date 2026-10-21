@@ -37,6 +37,7 @@ struct ProgressViewScreen: View {
                             Metric(value: durationText(totalSeconds), label: "Total training time")
                         }
                     }
+                    JourneyLink()
                     if store.state.completions.isEmpty {
                         VStack(spacing: 17) {
                             Image(systemName: "chart.xyaxis.line").font(.system(size: 45, weight: .light)).foregroundStyle(RowivoStyle.teal)
