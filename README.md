@@ -90,4 +90,4 @@ Nach dem ersten physischen PM5-Test stehen erneute Gerätetests der Korrekturen 
 
 ## Aktueller TestFlight-Test
 
-Am 23. September 2026 wurde **Version 0.1.0, Build 5** erfolgreich in App Store Connect hochgeladen. Apple hat die Verarbeitung gestartet; die endgültige TestFlight-Verfügbarkeit ist noch nicht bestätigt. Dieser historische Build enthält noch die inzwischen entfernte Jev-Testfunktion. Der aktuelle Quellstand benötigt einen neuen Build. [Release-Nachweis](docs/releases/0.1.0-5.md) und [abhakbare Testcheckliste](docs/releases/0.1.0-5-checklist.html). Monetarisierung ist vorerst zurückgestellt.
+Am 22. Oktober 2026 wurde **Version 0.1.0, Build 6** erfolgreich in App Store Connect hochgeladen. Die Versionsnummer blieb unverändert. Apple bestätigt den Eingang und verarbeitet das Paket; die endgültige TestFlight-Verfügbarkeit ist noch nicht bestätigt. Der Build enthält die neue Ruderreise und den zusammengeführten aktuellen App-Stand; die frühere Jev-Testfunktion ist entfernt. [Release-Nachweis](docs/releases/0.1.0-6.md) und [abhakbare Testcheckliste](docs/releases/0.1.0-6-checklist.html). Monetarisierung ist vorerst zurückgestellt.
