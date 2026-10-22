@@ -7,7 +7,6 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		A00100000000000000000001 /* JourneyView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00100000000000000000002 /* JourneyView.swift */; };
 		077F20EC61DAC18FF7318864 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8DF2EACEF9E54890B9720D92 /* SettingsView.swift */; };
 		24513A55E2246AE778D7B55A /* DesignSystem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 970D038F398FA0631DC1E6BB /* DesignSystem.swift */; };
 		2C004E534AEE9FD2EAB613E0 /* WatchWorkoutView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B683339C0CF4524C1D79817A /* WatchWorkoutView.swift */; };
@@ -30,6 +29,7 @@
 		9C571DACBD358430E34A0299 /* ActiveWorkoutView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AD13D0F84C5FA6263B616DE6 /* ActiveWorkoutView.swift */; };
 		9CD4C9B2FD8DFBBA172BD2AF /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 9C0C926FA0379C1ECB402684 /* Assets.xcassets */; };
 		9FB4BEE0BF8EFC759D4AE28E /* RowivoUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A51BC678B38F9674BA83AFD /* RowivoUITests.swift */; };
+		A00100000000000000000001 /* JourneyView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00100000000000000000002 /* JourneyView.swift */; };
 		A1A8D8DDA203ADB9E8C16BCF /* WorkoutEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D7A21BCEA4F8196CAC7CCE0C /* WorkoutEditorView.swift */; };
 		A4B140AF40FE9F1706DF6BC2 /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = 1FEF5C4B03C55059E20AECBC /* Localizable.xcstrings */; };
 		A8E92174C813EB7D18A3FA32 /* RowivoWatchApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1B2CE41EBB9E20271F17C47F /* RowivoWatchApp.swift */; };
@@ -95,7 +95,6 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
-		A00100000000000000000002 /* JourneyView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JourneyView.swift; sourceTree = "<group>"; };
 		0153ABE6F654C1ABC77010ED /* RowivoWatchUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RowivoWatchUITests.swift; sourceTree = "<group>"; };
 		06036E30B4B539B1562D00CB /* RowivoApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RowivoApp.swift; sourceTree = "<group>"; };
 		157DC5D107C388E17C482117 /* PM5Connection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PM5Connection.swift; sourceTree = "<group>"; };
@@ -121,6 +120,7 @@
 		9AED5BFDD1DD119FFDCADE7D /* DashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardView.swift; sourceTree = "<group>"; };
 		9B6CADFCF51EF1E34BE8C2F9 /* Rowivo.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Rowivo.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		9C0C926FA0379C1ECB402684 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		A00100000000000000000002 /* JourneyView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JourneyView.swift; sourceTree = "<group>"; };
 		A7C2329DA6AE4F259BC91C95 /* RowivoWatchUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = RowivoWatchUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		AD13D0F84C5FA6263B616DE6 /* ActiveWorkoutView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActiveWorkoutView.swift; sourceTree = "<group>"; };
 		B3CEF883EAFF4949EEAB6EA2 /* WatchCompanionModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchCompanionModel.swift; sourceTree = "<group>"; };
@@ -592,6 +592,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CURRENT_PROJECT_VERSION = 6;
 				DEVELOPMENT_TEAM = AYPXYQ7R9Z;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Rowivo/Info.plist;
@@ -622,6 +623,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CURRENT_PROJECT_VERSION = 6;
 				DEVELOPMENT_TEAM = AYPXYQ7R9Z;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Rowivo/Info.plist;
@@ -670,6 +672,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = RowivoWatch/RowivoWatch.entitlements;
 				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 6;
 				DEVELOPMENT_TEAM = AYPXYQ7R9Z;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = RowivoWatch/Info.plist;
@@ -710,6 +713,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = RowivoWatch/RowivoWatch.entitlements;
 				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 6;
 				DEVELOPMENT_TEAM = AYPXYQ7R9Z;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = RowivoWatch/Info.plist;

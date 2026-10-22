@@ -35,6 +35,7 @@ targets:
           subpath: $(CONTENTS_FOLDER_PATH)/Watch
     settings:
       base:
+        CURRENT_PROJECT_VERSION: '6'
         DEVELOPMENT_TEAM: AYPXYQ7R9Z
         PRODUCT_BUNDLE_IDENTIFIER: at.kromerlorenz.rowivo
         CODE_SIGN_IDENTITY: iPhone Developer
@@ -89,6 +90,7 @@ targets:
       - package: RowivoCore
     settings:
       base:
+        CURRENT_PROJECT_VERSION: '6'
         DEVELOPMENT_TEAM: AYPXYQ7R9Z
         PRODUCT_BUNDLE_IDENTIFIER: at.kromerlorenz.rowivo.watchkitapp
         SDKROOT: watchos
