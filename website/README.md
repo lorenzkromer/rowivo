@@ -116,18 +116,7 @@ für die tatsächlich beschriebenen Rowivo-Datenflüsse neu geschrieben. Die Tex
 sind implementiert, aber wegen folgender offener Punkte **noch nicht als finale
 Store-Datenschutzerklärung zur Veröffentlichung freigegeben**:
 
-1. **TypeSafe/Jev:** Die lokalen Unterlagen belegen die API-Datenflüsse, aber
-   nicht die juristische Betreiberfirma, Datenschutzrolle, den Vertrag/AVV,
-   Speicherfristen, Unterauftragsverarbeiter oder Verarbeitungsregionen und
-   Drittlandsgarantien des persönlichen TypeSafe-Zugangs. Diese Angaben wurden
-   beim Nutzer erfragt; bestätigt ist die direkte Nutzung der TypeSafe-API mit
-   eigenem Schlüssel, kein selbst betriebener Jev-Dienst. Die fehlenden Angaben
-   müssen aus TypeSafes Anbieterunterlagen kommen. Die Beschreibung der technischen
-   Übermittlung ersetzt sie nicht. Nach Klärung auch Rechtsgrundlagen, einschließlich des Umgangs mit
-   möglichen Gesundheitsdaten, und einen verifizierten Anbieter-Datenschutzlink
-   ergänzen. Keine pauschale Zusage zu EU-Verarbeitung, Löschung oder Training
-   durch den Anbieter machen.
-2. **Tatsächlicher Betrieb:** Der Hostingtext basiert auf dem lokalen
+1. **Tatsächlicher Betrieb:** Der Hostingtext basiert auf dem lokalen
    Infrastruktur-Lieferantenverzeichnis (Hetzner, EU; Microsoft 365 für
    Geschäftsmail) und `monitoring/loki-config.yml` (720 Stunden Retention).
    Beim Deploy mit dem tatsächlichen Routing, GeoIP/Logging und Anbieter-Verträgen
@@ -141,9 +130,8 @@ Store-Datenschutzerklärung zur Veröffentlichung freigegeben**:
    die Infrastrukturunterlagen Hetzner-Hosting in der EU ausweisen. Der direkte
    öffentliche Abruf der Firmen-Datenschutzseite war beim Abgleich nicht möglich.
 
-App-Quellen: `../README.md`, `../docs/jev.md`, `../docs/file-storage.md`,
-`../docs/watch.md`. Optionaler eigener TypeSafe-Schlüssel in den In-App-
-Einstellungen/Keychain bleibt wie entschieden; kein Backend wurde gebaut.
+App-Quellen: `../README.md`, `../docs/file-storage.md`, `../docs/watch.md`.
+Die experimentelle Vorschlagsfunktion wurde am 14.10.2026 entfernt.
 
 Spätere Änderungen an Analytics, Formularen, App-Datenflüssen oder Cloud-Diensten
 müssen gleichzeitig in beiden Datenschutz-Sprachversionen nachgezogen werden.

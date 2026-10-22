@@ -2,11 +2,13 @@
 
 Stand: 3. September 2026. Implementiert und mit Protokollfixtures sowie Simulator geprüft. Eine echte Bluetooth-Verbindung zu einem PM5 wurde in dieser Entwicklungsumgebung noch nicht hergestellt.
 
+Seit 4. September unterstützt die gemeinsame Geräteanbindung zusätzlich FTMS. Diese Anleitung bleibt für PM5 gültig; siehe [Rudergeräte](rowers.md).
+
 ## Verbindung und Training
 
 1. `Rowivo.xcodeproj` in Xcode öffnen, das eigene Development Team auswählen und die App auf einem echten iPhone mit iOS 18 oder neuer starten.
 2. Profil anlegen. Am PM5 **Verbinden / Connect** öffnen. Falls ErgData oder eine andere App verbunden ist, zuerst diese App-Verbindung am PM5 trennen.
-3. Unter **Heute → PM5 verbinden → Meinen PM5 suchen** den Monitor anhand seiner Nummer wählen und den Bluetooth-Zugriff erlauben. Nach erfolgreicher Einrichtung erscheint **PM5 verbunden**.
+3. Unter **Heute → Rudergerät verbinden → Rudergeräte suchen** den Monitor anhand seiner Nummer wählen und den Bluetooth-Zugriff erlauben. Nach erfolgreicher Einrichtung erscheint **Rudergerät verbunden**.
 4. Am PM5 **Einfach rudern / Just Row** wählen. Vor dem ersten Zug die geplante Einheit in Rowivo starten. Erst dann rudern.
 5. Rowivo zeigt die Trainingsabschnitte am iPhone und die empfangenen PM5-Werte: Distanz, Tempo /500 m, Schläge/min und Leistung. Puls erscheint nur, wenn der PM5 einen gültigen Wert liefert, etwa von einem dort verbundenen Brustgurt.
 6. Die Einheit in Rowivo beenden und das Feedback speichern. Unter **Fortschritt** stehen die PM5-Zusammenfassung und die Messpunkte im Verlauf.
@@ -22,7 +24,7 @@ Start und Pause in Rowivo steuern nur die App-Aufzeichnung. Der PM5 wird nicht a
 
 Die erste Messung dient als Ausgangspunkt. So werden bereits vor dem App-Start geruderte Meter nicht übernommen. Ein neues Gerät kann erst für die nächste Einheit verwendet werden. Ein reiner manueller Eintrag enthält keine PM5-Daten.
 
-Alle diese Daten werden standardmäßig lokal gespeichert und sind in freiwilligen Dateiexporten für den eigenen Speicher enthalten. Die Messwerte und Gerätekennung sind nicht Bestandteil der Anthropic-Anfragen. Inhalte, die Nutzer selbst in Chat oder Feedback schreiben, unterliegen weiterhin der angezeigten Coach-Freigabe.
+Alle diese Daten werden standardmäßig lokal gespeichert und sind in freiwilligen Dateiexporten für den eigenen Speicher enthalten. KI und Chat sind aus der aktiven App entfernt. Es werden keine Trainingsdaten an einen KI-Anbieter gesendet.
 
 Während einer aktiven Verbindung ist Bluetooth-Empfang im Hintergrund konfiguriert. Beim erzwungenen Beenden der App endet die Verbindung. Gespeicherte Messungen bleiben erhalten; nach dem Neustart muss der PM5 erneut gesucht werden. Zwischenstände werden ungefähr alle fünf Sekunden bei eintreffenden Messungen und zusätzlich bei Pause, Hintergrundwechsel und Abschluss gespeichert. Ein Prozessabbruch kann die letzten circa fünf Sekunden verlieren.
 
@@ -39,7 +41,7 @@ Diese Punkte lassen sich im Simulator nicht belegen:
 7. Teil-Einheit speichern, App schließen und neu öffnen: Zusammenfassung und Messreihe sind vorhanden; die geplante Einheit bleibt offen.
 8. Eine laufende Einheit verwerfen und neu starten: Daten der verworfenen Einheit werden nicht übernommen.
 
-Nicht enthalten: Übertragung des Trainingsplans auf den PM5, Import seines Speichers oder Concept2-Logbuch-Sync, automatisches Speichern aufgrund eines PM5-Endstatus, Apple Watch und HealthKit.
+Nicht enthalten: Übertragung des Trainingsplans auf den PM5, Import seines Speichers oder Concept2-Logbuch-Sync, automatisches Speichern aufgrund eines PM5-Endstatus, Watch-Pulsmessung und HealthKit. Die [Watch-Companion-App](watch.md) zeigt die vom iPhone empfangenen PM5-Werte an.
 
 ## Technische Quellen
 

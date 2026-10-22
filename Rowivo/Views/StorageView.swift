@@ -19,6 +19,7 @@ struct StorageView: View {
     @State private var pickerVisible = false
     @State private var pendingPreview: TrainingArchive?
     @State private var preview: TrainingArchive?
+    @State private var confirmingDisconnect = false
     private var canTransfer: Bool { !store.isTransferringFiles && store.state.clock == nil }
     var body: some View {
         NavigationStack {
@@ -55,7 +56,7 @@ struct StorageView: View {
                                     HStack {
                                         Button("Change folder") { picker = .folder }
                                         Spacer()
-                                        Button("Disconnect", role: .destructive) { store.disconnectCloudFolder() }
+                                        Button("Disconnect", role: .destructive) { confirmingDisconnect = true }
                                     }.font(.subheadline).disabled(store.isTransferringFiles)
                                 } else {
                                     Text("Cloud copies are off. Choose a folder to enable them.").font(.subheadline).foregroundStyle(RowivoStyle.muted)
@@ -101,13 +102,19 @@ struct StorageView: View {
                     }
                     VStack(alignment: .leading, spacing: 10) {
                         Text("What's in a copy?").font(.headline)
-                        Text("Profile, plan, saved workouts, feedback and PM5 measurements, including heart rate when available. Unfinished workouts are excluded.")
+                        Text("Profile, plan, saved workouts, feedback and device measurements, including heart rate when available. Unfinished workouts are excluded.")
                         Text("CSV tables are open and reusable. The additional training.rowivo file preserves your training for restoration, including plan history.")
                         Text("Your chosen provider stores these copies and manages uploads. Rowivo cannot confirm a server upload. This is a backup, not live sync between devices.")
                     }.font(.caption).foregroundStyle(RowivoStyle.muted).lineSpacing(3)
                 }.padding(22)
             }.rowivoScreen().navigationTitle("Your data").navigationBarTitleDisplayMode(.inline)
                 .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
+                .confirmationDialog("Disconnect this folder?", isPresented: $confirmingDisconnect, titleVisibility: .visible) {
+                    Button("Disconnect", role: .destructive) { store.disconnectCloudFolder() }
+                    Button("Cancel", role: .cancel) { }
+                } message: {
+                    Text("Automatic copies to this folder will stop. Your local training and existing exported files are kept.")
+                }
                 .sheet(item: $picker, onDismiss: pickerDidClose) { mode in
                     // UIKit may dismiss before its delegate fires. Process the result
                     // in the delegate; only defer the next sheet until this one closes.

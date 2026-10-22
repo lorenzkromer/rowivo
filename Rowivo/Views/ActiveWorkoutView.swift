@@ -1,4 +1,5 @@
 import SwiftUI
+import AudioToolbox
 import RowivoCore
 
 struct ActiveWorkoutView: View {
@@ -16,7 +17,7 @@ struct ActiveWorkoutView: View {
                 let elapsed = store.state.clock?.elapsed(at: timeline.date) ?? 0
                 let phase = workout.segment(at: elapsed)
                 let paused = store.state.clock?.resumedAt == nil
-                let hasPM5 = store.pm5.isConnected || store.pm5Recording != nil
+                let hasRower = store.rower.isConnected || store.rowerRecording != nil
                 ScrollView {
                     VStack(spacing: 28) {
                         VStack(spacing: 9) {
@@ -25,22 +26,21 @@ struct ActiveWorkoutView: View {
                                 .font(.system(size: 32, weight: .bold, design: .rounded))
                             Text(workout.displayName).foregroundStyle(RowivoStyle.muted)
                         }.padding(.top, 24)
-                        ZStack {
-                            Circle().stroke(RowivoStyle.pale, lineWidth: 12)
-                            Circle().trim(from: 0, to: min(1, elapsed / Double(workout.totalSeconds)))
-                                .stroke(RowivoStyle.teal, style: StrokeStyle(lineWidth: 12, lineCap: .round)).rotationEffect(.degrees(-90))
-                            VStack(spacing: 12) {
-                                Image(systemName: phase == nil ? "checkmark" : "figure.rower").font(.system(size: 38, weight: .light))
-                                Text(clockText(phase?.remaining ?? 0)).font(.system(size: hasPM5 ? 42 : 58, weight: .medium, design: .rounded)).monospacedDigit()
-                                    .contentTransition(.numericText()).accessibilityIdentifier("workout.timer")
-                                Text("In this segment").font(.subheadline).foregroundStyle(RowivoStyle.muted)
-                            }
-                        }.frame(width: hasPM5 ? 195 : 275, height: hasPM5 ? 195 : 275).padding(.vertical, 8)
+                        HStack(spacing: 24) {
+                            WorkoutRing(progress: min(1, elapsed / Double(workout.totalSeconds)),
+                                        value: clockText(min(Int(elapsed), workout.totalSeconds)), label: "Whole workout", color: RowivoStyle.teal)
+                            WorkoutRing(progress: phase.map { 1 - Double($0.remaining) / Double(workout.segments[$0.index].seconds) } ?? 1,
+                                        value: clockText(phase?.remaining ?? 0), label: "Current phase", color: RowivoStyle.clay)
+                                .accessibilityIdentifier("workout.timer")
+                        }.padding(.vertical, 8)
+                        if store.state.automaticallyPaused == true {
+                            Text("Auto-paused · row to continue").font(.subheadline).foregroundStyle(RowivoStyle.teal)
+                        }
                         HStack {
-                            Metric(value: clockText(min(Int(elapsed), workout.totalSeconds)), label: "Elapsed")
+                            Metric(value: clockText(workout.totalSeconds), label: "Planned duration")
                             Metric(value: clockText(max(0, workout.totalSeconds - Int(elapsed))), label: "Remaining")
                         }.padding(.horizontal, 30)
-                        if hasPM5 { PM5LivePanel() }
+                        if hasRower { RowerLivePanel() }
                         Surface {
                             HStack(spacing: 14) {
                                 Image(systemName: "wind").font(.title2).foregroundStyle(RowivoStyle.teal)
@@ -48,10 +48,14 @@ struct ActiveWorkoutView: View {
                                     .font(.subheadline).lineSpacing(3)
                             }
                         }
+                    }.padding(25)
+                }.rowivoScreen()
+                    .rowivoBottomBar {
+                        VStack(spacing: 12) {
                         if phase == nil {
                             Button("Finish and reflect") {
                                 recordedSeconds = workout.totalSeconds
-                                if store.state.clock?.resumedAt != nil { store.toggleTimer() }
+                                store.prepareReflection()
                                 feedback = true
                             }.buttonStyle(PrimaryButton()).accessibilityIdentifier("workout.finish")
                         } else {
@@ -60,19 +64,24 @@ struct ActiveWorkoutView: View {
                             }.buttonStyle(PrimaryButton()).accessibilityIdentifier("workout.pause")
                             Button("End session early") {
                                 recordedSeconds = max(1, min(workout.totalSeconds, Int(elapsed)))
-                                if store.state.clock?.resumedAt != nil { store.toggleTimer() }
+                                store.prepareReflection()
                                 confirmEnd = true
                             }.font(.subheadline).foregroundStyle(RowivoStyle.muted).accessibilityIdentifier("workout.end")
                         }
-                    }.padding(25)
-                }.rowivoScreen()
+                        }.padding(.horizontal, 22).padding(.vertical, 12)
+                    }
+                    .onChange(of: phase?.index) { previous, current in
+                        guard previous != nil, previous != current, !paused else { return }
+                        UINotificationFeedbackGenerator().notificationOccurred(.success)
+                        if store.workoutPreferences.phaseSounds { AudioServicesPlaySystemSound(1057) }
+                    }
             }
             .navigationTitle("Rowivo").navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) { Button { dismiss() } label: { Image(systemName: "chevron.down") }.accessibilityLabel("Back to app") }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button { device = true } label: { Image(systemName: "antenna.radiowaves.left.and.right") }
-                        .accessibilityLabel("Connect your PM5").accessibilityIdentifier("pm5.open")
+                        .accessibilityLabel("Connect your rower").accessibilityIdentifier("pm5.open")
                 }
             }
             .confirmationDialog("End this session?", isPresented: $confirmEnd, titleVisibility: .visible) {
@@ -81,7 +90,7 @@ struct ActiveWorkoutView: View {
                 Button("Keep rowing", role: .cancel) { }
             } message: { Text("A partial session is saved in your history. The planned workout stays open.") }
             .sheet(isPresented: $feedback) { WorkoutFeedbackView(workout: workout, seconds: recordedSeconds, manual: false) }
-            .sheet(isPresented: $device) { PM5DeviceView() }
+            .sheet(isPresented: $device) { RowerDeviceView() }
             .onAppear { UIApplication.shared.isIdleTimerDisabled = true }
             .onDisappear { UIApplication.shared.isIdleTimerDisabled = false }
             .onChange(of: scenePhase) { _, phase in UIApplication.shared.isIdleTimerDisabled = phase == .active }
@@ -101,6 +110,7 @@ struct WorkoutFeedbackView: View {
     @State private var actualMinutes = 0
     @State private var actualSeconds = 0
     @State private var trainedAt = Date()
+    @State private var saveError: String?
     private var duration: Int { manual ? actualMinutes * 60 + actualSeconds : seconds }
     private var effortLabel: String {
         localized(["Very easy", "Comfortable", "Moderate", "Hard", "Very hard"][effort - 1])
@@ -127,10 +137,10 @@ struct WorkoutFeedbackView: View {
                             } else { Label(clockText(seconds), systemImage: "clock").font(.title3.monospacedDigit()) }
                             LabeledContent("Planned duration", value: durationText(workout.totalSeconds))
                                 .font(.subheadline).foregroundStyle(RowivoStyle.muted)
-                            if !manual, let recording = store.pm5Recording, recording.hasMeasurements {
-                                PM5RecordingSummary(recording: recording)
+                            if !manual, let recording = store.rowerRecording, recording.hasMeasurements {
+                                RowerRecordingSummary(recording: recording)
                             } else {
-                                Text(localized(manual ? "Recorded by you. No sensor data is added." : "Timed with Rowivo. No PM5 measurements were recorded."))
+                                Text(localized(manual ? "Recorded by you. No sensor data is added." : "Timed with Rowivo. No device measurements were recorded."))
                                     .font(.caption).foregroundStyle(RowivoStyle.muted)
                             }
                             if duration < workout.totalSeconds {
@@ -161,9 +171,11 @@ struct WorkoutFeedbackView: View {
                                 .lineLimit(3...6).font(.subheadline).accessibilityIdentifier("feedback.note")
                         }
                     }
+                    if let saveError { Text(saveError).foregroundStyle(RowivoStyle.clay) }
                     Button("Save session") {
                         if store.complete(workout, seconds: duration, effort: effort, discomfort: discomfort, note: note, manual: manual,
                                           trainedAt: manual ? trainedAt : nil) { dismiss() }
+                        else { saveError = store.errorMessage ?? String(localized: "Could not save. Please try again."); store.errorMessage = nil }
                     }.buttonStyle(PrimaryButton()).disabled(!(1...14_400).contains(duration)).accessibilityIdentifier("feedback.save")
                 }.padding(22)
             }.rowivoScreen().scrollDismissesKeyboard(.interactively)
@@ -171,5 +183,24 @@ struct WorkoutFeedbackView: View {
                 .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } } }
                 .onAppear { actualMinutes = seconds / 60; actualSeconds = seconds % 60 }
         }
+    }
+}
+
+private struct WorkoutRing: View {
+    var progress: Double
+    var value: String
+    var label: LocalizedStringKey
+    var color: Color
+    var body: some View {
+        VStack(spacing: 12) {
+            ZStack {
+                Circle().stroke(color.opacity(0.12), lineWidth: 9)
+                Circle().trim(from: 0, to: max(0, min(1, progress)))
+                    .stroke(color, style: StrokeStyle(lineWidth: 9, lineCap: .round)).rotationEffect(.degrees(-90))
+                Text(value).font(.system(size: 30, weight: .semibold, design: .rounded)).monospacedDigit()
+                    .minimumScaleFactor(0.6).lineLimit(1).padding(12)
+            }.aspectRatio(1, contentMode: .fit)
+            Text(label).font(.caption.weight(.semibold)).foregroundStyle(color)
+        }.frame(maxWidth: .infinity).accessibilityElement(children: .combine)
     }
 }

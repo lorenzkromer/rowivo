@@ -93,10 +93,11 @@ public struct WorkoutCompletion: Codable, Equatable, Identifiable, Sendable {
     public var note: String
     public var manuallyRecorded: Bool
     public var finishedPlan: Bool
-    public var pm5: PM5Recording?
+    // Keep the historical JSON key so existing sessions and backups remain readable.
+    public var pm5: RowerRecording?
     public var customName: String?
     public init(workout: Workout, date: Date = Date(), durationSeconds: Int, effort: Int,
-                discomfort: Bool, note: String, manuallyRecorded: Bool, pm5: PM5Recording? = nil, recordedAt: Date? = nil) {
+                discomfort: Bool, note: String, manuallyRecorded: Bool, pm5: RowerRecording? = nil, recordedAt: Date? = nil) {
         id = UUID(); workoutID = workout.id; title = workout.kind; self.date = date
         self.durationSeconds = durationSeconds; self.effort = effort; self.discomfort = discomfort
         self.note = note; self.manuallyRecorded = manuallyRecorded
@@ -138,7 +139,12 @@ public enum PlanFactory {
                     segments.append(.init(kind: .work, seconds: mainMinutes * 60, intensity: .steady))
                 }
                 segments.append(.init(kind: .cooldown, seconds: 180))
-                return fit(Workout(kind: kind, segments: segments), to: profile.sessionMinutes * 60)
+                var workout = fit(Workout(kind: kind, segments: segments), to: profile.sessionMinutes * 60)
+                // Shorter recovery must not silently turn into extra rowing workload.
+                for index in workout.segments.indices where workout.segments[index].kind == .rest {
+                    workout.segments[index].seconds = min(60, workout.segments[index].seconds)
+                }
+                return workout
             })
         }
         let plan = TrainingPlan(blocks: blocks)

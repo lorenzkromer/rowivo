@@ -4,7 +4,7 @@ import RowivoCore
 @testable import Rowivo
 
 @MainActor final class ArchiveTests: XCTestCase {
-    func testEmptyAndCustomPlansRoundTripInFormatFour() throws {
+    func testEmptyAndCustomPlansRoundTripInFormatFive() throws {
         let container = try ModelContainer(for: StoredState.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true, cloudKitDatabase: .none))
         let store = try RowivoStore(container: container)
         store.createProfile(.init(name: "Alex"))
@@ -16,7 +16,7 @@ import RowivoCore
         XCTAssertTrue(store.complete(workout, seconds: 90, effort: 2, discomfort: false, note: "", manual: true))
         let archive = try TrainingArchive(state: store.state)
         let decoded = try TrainingArchive.decode(archive.encoded())
-        XCTAssertEqual(decoded.version, 4)
+        XCTAssertEqual(decoded.version, 5)
         XCTAssertEqual(decoded.plan.workouts.first?.customName, "=Morning row")
         XCTAssertEqual(decoded.completions.first?.customName, "=Morning row")
         for file in ["plan.csv", "sessions.csv"] {
@@ -27,7 +27,7 @@ import RowivoCore
     }
 
     func testOlderBackupsAndMissingOptionalFieldsStillDecode() throws {
-        for version in [1, 2, 3] {
+        for version in [1, 2, 3, 4] {
             var archive = try makeArchive(); archive.version = version
             let restored = try TrainingArchive.decode(archive.encoded())
             XCTAssertEqual(restored.plan, archive.plan)
@@ -58,6 +58,32 @@ import RowivoCore
         XCTAssertTrue(csv.hasSuffix(",\"\(formatter.string(from: trainedAt))\",\"\"\r\n"))
     }
 
+    func testFTMSRecordingSurvivesSaveReopenAndExportWithoutInventedCounters() throws {
+        let store = try makeStore()
+        let workout = try XCTUnwrap(store.nextWorkout)
+        store.start(workout)
+        let date = try XCTUnwrap(store.state.clock?.resumedAt)
+        let device = RowerDevice(id: UUID(), name: "FTMS Test", signal: -40, deviceProtocol: .ftms)
+        store.receiveRower(RowerSnapshot(date: date, pace: 800, strokeRate: 22.5, strokeCount: 100, watts: -20), device: device)
+        store.receiveRower(RowerSnapshot(date: date.addingTimeInterval(1), strokeRate: 23, strokeCount: 101), device: device)
+        store.toggleTimer()
+        XCTAssertTrue(store.complete(workout, seconds: 1, effort: 2, discomfort: false, note: "", manual: false))
+        let reopened = try RowivoStore(container: store.container)
+        let recording = try XCTUnwrap(reopened.state.completions.first?.pm5)
+        XCTAssertEqual(recording.deviceProtocol, .ftms)
+        XCTAssertEqual(recording.samples.count, 2)
+        XCTAssertNil(recording.measuredDistance); XCTAssertNil(recording.measuredTime)
+        let archive = try TrainingArchive(state: reopened.state)
+        let restored = try TrainingArchive.decode(archive.encoded())
+        XCTAssertEqual(restored.completions, reopened.state.completions)
+        let files = try archive.exportFiles()
+        let sessions = String(decoding: try XCTUnwrap(files["sessions.csv"]), as: UTF8.self)
+        XCTAssertTrue(sessions.contains("\"ftms\",\"FTMS Test\",\"\",\"\",\"\""))
+        let samples = String(decoding: try XCTUnwrap(files["rower_samples.csv"]), as: UTF8.self)
+        XCTAssertTrue(samples.contains("\"800.0\",\"22.5\",\"-20\""))
+        XCTAssertTrue(samples.contains("\"100\""))
+    }
+
     private func makeStore() throws -> RowivoStore {
         let container = try ModelContainer(for: StoredState.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true, cloudKitDatabase: .none))
         let store = try RowivoStore(container: container)
@@ -68,7 +94,7 @@ import RowivoCore
         let store = try makeStore()
         let workout = try XCTUnwrap(store.nextWorkout)
         let date = Date(timeIntervalSince1970: 1_780_000_000)
-        var recording = PM5Recording(deviceID: UUID(), deviceName: "PM5 Test")
+        var recording = RowerRecording(deviceID: UUID(), deviceName: "PM5 Test")
         recording.receive(.init(date: date, general: .init(elapsed: 0, distance: 0)), workoutElapsed: 0)
         recording.receive(.init(date: date.addingTimeInterval(1), general: .init(elapsed: 1, distance: 4), pace: 125, strokeRate: 22, watts: 180), workoutElapsed: 1)
         recording.breakContinuity(isGap: false)
@@ -99,13 +125,13 @@ import RowivoCore
     func testCSVTablesJoinMeasuredSessionAndPreserveMissingReadings() throws {
         let archive = try makeArchive()
         let files = try archive.exportFiles()
-        XCTAssertEqual(Set(files.keys), Set(["profile.csv", "sessions.csv", "pm5_samples.csv", "plan.csv", "training.rowivo", "README.txt"]))
+        XCTAssertEqual(Set(files.keys), Set(["profile.csv", "sessions.csv", "rower_samples.csv", "plan.csv", "training.rowivo", "README.txt"]))
         let sessions = String(decoding: try XCTUnwrap(files["sessions.csv"]), as: UTF8.self)
-        let samples = String(decoding: try XCTUnwrap(files["pm5_samples.csv"]), as: UTF8.self)
+        let samples = String(decoding: try XCTUnwrap(files["rower_samples.csv"]), as: UTF8.self)
         XCTAssertTrue(sessions.contains("\"'=1+1\""))
         XCTAssertTrue(sessions.contains("\"pm5\",\"PM5 Test\",\"4.0\",\"1.0\",\"125.0\""))
         XCTAssertTrue(samples.contains(archive.completions[0].id.uuidString))
-        XCTAssertTrue(samples.contains("\"125.0\",\"22\",\"180\",\"\",\"0\""))
+        XCTAssertTrue(samples.contains("\"125.0\",\"22.0\",\"180\",\"\",\"0\""))
         XCTAssertEqual(samples.components(separatedBy: "\r\n").count, 4) // header, two samples, final terminator
         XCTAssertTrue(sessions.contains("Z\""))
     }

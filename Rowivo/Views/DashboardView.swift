@@ -30,19 +30,17 @@ struct DashboardView: View {
                                 Button("Check in") { checkIn = true }.font(.subheadline.bold())
                             }
                         }
-                    } else if !store.canTrain {
+                    } else if store.requiresRecentTrainingConfirmation && store.state.clock == nil {
                         Surface {
                             HStack(alignment: .top, spacing: 14) {
                                 Image(systemName: "leaf").font(.title2).foregroundStyle(RowivoStyle.teal)
                                 VStack(alignment: .leading, spacing: 7) {
-                                    Text("Recovery is part of progress.").font(.headline)
-                                    if let date = PlanEngine.availableDate(completions: store.state.completions) {
-                                        Text(String(format: String(localized: "Your next session is available %@."), date.formatted(.dateTime.weekday(.wide).day().month(.abbreviated))))
-                                            .font(.subheadline).foregroundStyle(RowivoStyle.muted)
-                                    }
+                                    Text("You trained recently.").font(.headline)
+                                    Text("You can start another session. Rowivo will ask you to confirm first.")
+                                        .font(.subheadline).foregroundStyle(RowivoStyle.muted)
                                 }
                             }
-                        }
+                        }.accessibilityIdentifier("training.recent")
                     }
                     if let workout = store.nextWorkout {
                         workoutCard(workout)
@@ -60,7 +58,7 @@ struct DashboardView: View {
                         Text("Last recorded session").font(.title3.bold())
                         RecordedWorkoutCard(log: log, context: "today") { editingCompletion = log }
                     }
-                    PM5ConnectionCard()
+                    RowerConnectionCard()
                     if let block = store.currentBlock { blockProgress(block) }
                     if store.nextWorkout != nil { Button(action: openPlan) {
                         Surface {

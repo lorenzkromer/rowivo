@@ -41,7 +41,7 @@ struct OnboardingView: View {
             }.frame(height: 260)
             Spacer(minLength: 24)
             Text("Your rhythm.\nYour progress.").font(.system(size: 43, weight: .bold, design: .rounded)).tracking(-1.8).fixedSize(horizontal: false, vertical: true)
-            Text("Build your workouts, row with your PM5 and follow your progress.")
+            Text("Build your workouts, connect your rower and follow your progress.")
                 .font(.body).foregroundStyle(RowivoStyle.muted).lineSpacing(4).padding(.top, 16)
             Spacer(minLength: 24)
             Button { withAnimation { showProfile = true } } label: {

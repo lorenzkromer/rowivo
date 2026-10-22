@@ -13,9 +13,10 @@ packages:
     path: Packages/RowivoCore
 settings:
   base:
+    SDKROOT: iphoneos
     SWIFT_VERSION: '6.0'
     MARKETING_VERSION: '0.1.0'
-    CURRENT_PROJECT_VERSION: '1'
+    CURRENT_PROJECT_VERSION: '5'
     DEVELOPMENT_TEAM: ''
 targets:
   Rowivo:
@@ -23,8 +24,15 @@ targets:
     platform: iOS
     sources:
       - path: Rowivo
+      - path: Shared
     dependencies:
       - package: RowivoCore
+      - target: RowivoWatch
+        embed: true
+        link: false
+        copy:
+          destination: productsDirectory
+          subpath: $(CONTENTS_FOLDER_PATH)/Watch
     settings:
       base:
         DEVELOPMENT_TEAM: AYPXYQ7R9Z
@@ -40,7 +48,7 @@ targets:
         INFOPLIST_FILE: Rowivo/Info.plist
         INFOPLIST_KEY_CFBundleDisplayName: Rowivo
         INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.healthcare-fitness
-        INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription: Rowivo connects to your Concept2 PM5 to display and record your rowing workout.
+        INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription: Rowivo connects to compatible rowing machines via Bluetooth to display and record your workout.
         INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
         INFOPLIST_KEY_UILaunchScreen_Generation: YES
         INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone: UIInterfaceOrientationPortrait
@@ -68,3 +76,45 @@ targets:
     settings:
       base:
         GENERATE_INFOPLIST_FILE: YES
+  RowivoWatch:
+    type: application
+    platform: watchOS
+    deploymentTarget: '11.0'
+    sources:
+      - path: RowivoWatch
+      - path: Shared
+      - path: Rowivo/Resources/Localizable.xcstrings
+      - path: Rowivo/Resources/InfoPlist.xcstrings
+    dependencies:
+      - package: RowivoCore
+    settings:
+      base:
+        DEVELOPMENT_TEAM: AYPXYQ7R9Z
+        PRODUCT_BUNDLE_IDENTIFIER: at.kromerlorenz.rowivo.watchkitapp
+        SDKROOT: watchos
+        CODE_SIGN_STYLE: Automatic
+        TARGETED_DEVICE_FAMILY: '4'
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_FILE: RowivoWatch/Info.plist
+        CODE_SIGN_ENTITLEMENTS: RowivoWatch/RowivoWatch.entitlements
+        INFOPLIST_KEY_CFBundleDisplayName: Rowivo
+        INFOPLIST_KEY_WKCompanionAppBundleIdentifier: at.kromerlorenz.rowivo
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        SKIP_INSTALL: YES
+        SWIFT_EMIT_LOC_STRINGS: YES
+    scheme:
+      testTargets:
+        - RowivoWatchUITests
+  RowivoWatchUITests:
+    type: bundle.ui-testing
+    platform: watchOS
+    deploymentTarget: '11.0'
+    sources: [Tests/RowivoWatchUITests]
+    dependencies:
+      - target: RowivoWatch
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        DEVELOPMENT_TEAM: AYPXYQ7R9Z
+        TEST_TARGET_NAME: RowivoWatch
+        SDKROOT: watchos

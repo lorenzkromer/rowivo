@@ -6,7 +6,7 @@ enum StorageError: Error, Equatable { case noTraining, invalidBackup, newerBacku
 /// Training only. Credentials, chat, sharing consent, bookmarks and in-flight state
 /// never enter the portable backup or the cloud copy.
 struct TrainingArchive: Codable, Sendable {
-    static let currentVersion = 4
+    static let currentVersion = 5
     var format = "app.rowivo.training"
     var version = Self.currentVersion
     var createdAt: Date
@@ -82,15 +82,16 @@ struct TrainingArchive: Codable, Sendable {
                 for (index, sample) in recording.samples.enumerated() {
                     guard sample.id == index, sample.date >= previousDate,
                           sample.workoutElapsed.isFinite, (0...14_401).contains(sample.workoutElapsed),
-                          sample.monitorElapsed.isFinite, sample.monitorElapsed >= 0,
-                          sample.monitorDistance.isFinite, sample.monitorDistance >= 0,
+                          sample.monitorElapsed.map({ $0.isFinite && $0 >= 0 }) ?? true,
+                          sample.monitorDistance.map({ $0.isFinite && $0 >= 0 }) ?? true,
                           sample.recordedDistance.isFinite, sample.recordedDistance >= previousDistance,
                           sample.recordedDistance <= recording.distance + 0.001,
+                          sample.strokeCount.map({ (0...65535).contains($0) }) ?? true,
                           sample.segment >= 0, sample.segment <= recording.segment,
-                          sample.pace.map({ $0.isFinite && $0 > 0 && $0 <= 655.35 }) ?? true,
-                          sample.strokeRate.map({ (0...255).contains($0) }) ?? true,
-                          sample.watts.map({ (0...65535).contains($0) }) ?? true,
-                          sample.heartRate.map({ (1...254).contains($0) }) ?? true else { throw StorageError.invalidBackup }
+                          sample.pace.map({ $0.isFinite && $0 > 0 && $0 <= (recording.deviceProtocol == .ftms ? 65535 : 655.35) }) ?? true,
+                          sample.strokeRate.map({ $0.isFinite && (0...255).contains($0) }) ?? true,
+                          sample.watts.map({ (recording.deviceProtocol == .ftms ? -32768...32767 : 0...65535).contains($0) }) ?? true,
+                          sample.heartRate.map({ (1...255).contains($0) }) ?? true else { throw StorageError.invalidBackup }
                     previousDate = sample.date; previousDistance = sample.recordedDistance
                 }
             }
@@ -105,21 +106,21 @@ struct TrainingArchive: Codable, Sendable {
         func integer(_ value: Int?) -> CSVValue { value.map(CSVValue.integer) ?? .empty }
         var profileCSV = CSVTable(headers: ["schema_version", "name", "goal", "experience", "sessions_per_block", "session_budget_minutes"])
         profileCSV.append([.integer(Self.currentVersion), .text(profile.name), .text(profile.goal.rawValue), .text(profile.experience.rawValue), .integer(profile.sessionsPerWeek), .integer(profile.sessionMinutes)])
-        var sessions = CSVTable(headers: ["schema_version", "session_id", "workout_id", "recorded_at_utc", "workout_type", "duration_seconds", "effort_1_5", "discomfort", "note", "manual", "finished_plan", "source", "pm5_device_name", "pm5_distance_m", "pm5_elapsed_seconds", "pm5_average_pace_seconds_per_500m", "pm5_has_gaps", "workout_name", "trained_at_utc", "edited_at_utc"])
-        var samples = CSVTable(headers: ["schema_version", "session_id", "sample_index", "timestamp_utc", "app_elapsed_seconds", "pm5_elapsed_seconds", "monitor_distance_m", "recorded_distance_m", "pace_seconds_per_500m", "stroke_rate_spm", "power_w", "heart_rate_bpm", "segment"])
+        var sessions = CSVTable(headers: ["schema_version", "session_id", "workout_id", "recorded_at_utc", "workout_type", "duration_seconds", "effort_1_5", "discomfort", "note", "manual", "finished_plan", "source", "device_name", "device_distance_m", "device_elapsed_seconds", "device_average_pace_seconds_per_500m", "device_has_gaps", "workout_name", "trained_at_utc", "edited_at_utc"])
+        var samples = CSVTable(headers: ["schema_version", "session_id", "sample_index", "timestamp_utc", "app_elapsed_seconds", "device_elapsed_seconds", "monitor_distance_m", "recorded_distance_m", "pace_seconds_per_500m", "stroke_rate_spm", "power_w", "heart_rate_bpm", "segment", "stroke_count"])
         for log in completions.sorted(by: { $0.date == $1.date ? $0.id.uuidString < $1.id.uuidString : $0.date < $1.date }) {
             sessions.append([.integer(Self.currentVersion), .text(log.id.uuidString), .text(log.workoutID.uuidString), .text(date.string(from: log.recordedAt ?? log.date)),
                              .text(log.title.rawValue), .integer(log.durationSeconds), .integer(log.effort), .boolean(log.discomfort),
                              .text(log.note), .boolean(log.manuallyRecorded), .boolean(log.finishedPlan),
-                             .text(log.pm5 != nil ? "pm5" : log.manuallyRecorded ? "manual" : "app_timer"),
-                             log.pm5.map { .text($0.deviceName) } ?? .empty, decimal(log.pm5?.distance), decimal(log.pm5?.rowingSeconds),
+                             .text(log.pm5?.deviceProtocol.rawValue ?? (log.manuallyRecorded ? "manual" : "app_timer")),
+                             log.pm5.map { .text($0.deviceName) } ?? .empty, decimal(log.pm5?.measuredDistance), decimal(log.pm5?.measuredTime),
                              decimal(log.pm5?.averagePace), log.pm5.map { .boolean($0.hasGaps) } ?? .empty, log.customName.map(CSVValue.text) ?? .empty,
                              .text(date.string(from: log.date)), log.editedAt.map { .text(date.string(from: $0)) } ?? .empty])
             for sample in log.pm5?.samples ?? [] {
                 samples.append([.integer(Self.currentVersion), .text(log.id.uuidString), .integer(sample.id), .text(date.string(from: sample.date)),
-                                .number(sample.workoutElapsed), .number(sample.monitorElapsed), .number(sample.monitorDistance),
-                                .number(sample.recordedDistance), decimal(sample.pace), integer(sample.strokeRate), integer(sample.watts),
-                                integer(sample.heartRate), .integer(sample.segment)])
+                                .number(sample.workoutElapsed), decimal(sample.monitorElapsed), decimal(sample.monitorDistance),
+                                sample.monitorDistance == nil ? .empty : .number(sample.recordedDistance), decimal(sample.pace), decimal(sample.strokeRate), integer(sample.watts),
+                                integer(sample.heartRate), .integer(sample.segment), integer(sample.strokeCount)])
             }
         }
         var planCSV = CSVTable(headers: ["schema_version", "plan_revision", "block_id", "week", "repeated_block", "workout_id", "workout_type", "segment_index", "segment_type", "intensity", "duration_seconds", "workout_name"])
@@ -132,20 +133,23 @@ struct TrainingArchive: Codable, Sendable {
                 }
             }
         }
-        return ["profile.csv": profileCSV.data, "sessions.csv": sessions.data, "pm5_samples.csv": samples.data, "plan.csv": planCSV.data,
+        return ["profile.csv": profileCSV.data, "sessions.csv": sessions.data, "rower_samples.csv": samples.data, "plan.csv": planCSV.data,
                 "training.rowivo": try encoded(), "README.txt": Data(Self.readme.utf8)]
     }
 
     static let readme = """
-    ROWIVO TRAINING EXPORT — FORMAT 4
+    ROWIVO TRAINING EXPORT — FORMAT 5
     Each export is an independent snapshot. Previous copies are never overwritten.
     profile.csv: training preferences. plan.csv: current plan, one row per segment.
     sessions.csv: saved sessions, one row per session. recorded_at_utc is the save date.
     trained_at_utc is the workout date, chosen by you for manual entries. Older entries
     use their original save date as the workout date; no historical date is inferred.
-    pm5_samples.csv: received PM5 measurements, joined to sessions.csv by session_id.
+    rower_samples.csv: received device measurements, joined to sessions.csv by session_id.
+    source identifies pm5, ftms, manual or app_timer. Device fields are empty when unavailable.
+    Format 5 renames pm5_* headers to device_* and pm5_samples.csv to rower_samples.csv.
+    PM5 backups from formats 1–4 remain readable. Older app versions cannot import format 5.
     workout_name preserves optional custom names in plan.csv and sessions.csv.
-    Session details can be corrected without changing the original plan or PM5 samples.
+    Session details can be corrected without changing the original plan or device samples.
     edited_at_utc is the last manual correction; empty means no correction is recorded.
     finished_plan follows the corrected duration. Multiple sessions may fulfill the same workout.
     CSV uses UTF-8 with BOM, comma separators, quoted fields, CRLF, decimal points,

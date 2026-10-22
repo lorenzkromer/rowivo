@@ -3,45 +3,51 @@ import CoreBluetooth
 import Observation
 import RowivoCore
 
-enum PM5ConnectionState: String {
-    case idle = "Connect your PM5"
+enum RowerConnectionState: String {
+    case idle = "Connect your rower"
     case starting = "Starting Bluetooth…"
-    case scanning = "Looking for your PM5…"
-    case connecting = "Connecting to PM5…"
-    case connected = "PM5 connected"
-    case reconnecting = "Reconnecting to PM5…"
-    case disconnected = "PM5 disconnected"
+    case scanning = "Looking for rowing machines…"
+    case connecting = "Connecting to your rower…"
+    case connected = "Rower connected"
+    case reconnecting = "Reconnecting to your rower…"
+    case disconnected = "Rower disconnected"
     case poweredOff = "Bluetooth is off"
     case unauthorized = "Bluetooth access is off"
     case unsupported = "Bluetooth unavailable"
-    case failed = "Could not connect to PM5"
+    case failed = "Could not connect to your rower"
+    case notRower = "This device does not provide supported rowing data"
 }
 
-struct PM5Device: Identifiable {
+struct RowerDevice: Identifiable {
     var id: UUID
     var name: String
     var signal: Int
+    var deviceProtocol: RowerProtocol = .concept2
 }
 
 /// CoreBluetooth delivers all delegates on the main queue. No Bluetooth permission is
 /// requested until the user explicitly searches or reconnects.
-@MainActor @Observable final class PM5Connection: NSObject {
-    private(set) var state = PM5ConnectionState.idle
-    private(set) var devices: [PM5Device] = []
-    private(set) var selectedDevice: PM5Device?
-    private(set) var latest: PM5Snapshot?
+@MainActor @Observable final class RowerConnection: NSObject {
+    private(set) var state = RowerConnectionState.idle
+    private(set) var devices: [RowerDevice] = []
+    private(set) var selectedDevice: RowerDevice?
+    private(set) var latest: RowerSnapshot?
     var lockedDeviceID: UUID?
-    var onSnapshot: ((PM5Snapshot, PM5Device) -> Void)?
+    var onSnapshot: ((RowerSnapshot, RowerDevice) -> Void)?
     var onInterruption: (() -> Void)?
 
     private var central: CBCentralManager?
     private var peripherals: [UUID: CBPeripheral] = [:]
     private var peripheral: CBPeripheral?
     private var telemetry = PM5Telemetry()
+    private var ftmsTelemetry = FTMSTelemetry()
     private var subscribed: Set<CBUUID> = []
     private var wantsConnection = false
     private var scanRequested = false
     private var timeout: Task<Void, Never>?
+    private static let fitness = CBUUID(string: "1826")
+    private static let rowerData = CBUUID(string: "2AD1")
+    private var requiredNotifications: [CBUUID] { selectedDevice?.deviceProtocol == .ftms ? [Self.rowerData] : [Self.general, Self.additional] }
     private static let rowing = uuid(0x0030)
     private static let general = uuid(0x0031)
     private static let additional = uuid(0x0032)
@@ -76,8 +82,8 @@ struct PM5Device: Identifiable {
     private func beginScan() {
         guard central?.state == .poweredOn else { return }
         timeout?.cancel(); devices = []; peripherals = [:]; state = .scanning
-        // PM5 firmware generations advertise different service lists. Scan in the
-        // foreground, filter by the official PM5 name, then verify its rowing service.
+        // Scan in the foreground: PM5 names and advertised FTMS services are candidates.
+        // Discover and verify the actual rowing characteristic before subscribing.
         central?.scanForPeripherals(withServices: nil, options: [CBCentralManagerScanOptionAllowDuplicatesKey: true])
         scheduleTimeout(seconds: 15) { connection in connection.stopSearch() }
     }
@@ -88,11 +94,11 @@ struct PM5Device: Identifiable {
         if state == .scanning { timeout?.cancel(); state = .idle }
     }
 
-    func connect(_ device: PM5Device) {
+    func connect(_ device: RowerDevice) {
         guard lockedDeviceID == nil || lockedDeviceID == device.id,
               let candidate = peripherals[device.id], central?.state == .poweredOn else { return }
         stopSearch(); selectedDevice = device; peripheral = candidate; candidate.delegate = self
-        wantsConnection = true; state = .connecting; subscribed = []; telemetry = PM5Telemetry(); latest = nil
+        wantsConnection = true; state = .connecting; subscribed = []; telemetry = PM5Telemetry(); ftmsTelemetry = FTMSTelemetry(); latest = nil
         central?.connect(candidate)
         connectionDeadline()
     }
@@ -100,7 +106,7 @@ struct PM5Device: Identifiable {
     func disconnect() {
         wantsConnection = false; stopSearch(); timeout?.cancel()
         if let peripheral { central?.cancelPeripheralConnection(peripheral) }
-        peripheral = nil; latest = nil; subscribed = []; telemetry = PM5Telemetry()
+        peripheral = nil; latest = nil; subscribed = []; telemetry = PM5Telemetry(); ftmsTelemetry = FTMSTelemetry()
         state = .disconnected; onInterruption?()
     }
 
@@ -122,7 +128,7 @@ struct PM5Device: Identifiable {
         }
     }
 
-    private func scheduleTimeout(seconds: Double, action: @escaping @MainActor (PM5Connection) -> Void) {
+    private func scheduleTimeout(seconds: Double, action: @escaping @MainActor (RowerConnection) -> Void) {
         timeout?.cancel()
         timeout = Task { [weak self] in
             do { try await Task.sleep(for: .seconds(seconds)) } catch { return }
@@ -146,22 +152,26 @@ struct PM5Device: Identifiable {
         }
     }
 
-    private func unavailable(_ reason: PM5ConnectionState) {
-        timeout?.cancel(); latest = nil; subscribed = []; telemetry = PM5Telemetry()
+    private func unavailable(_ reason: RowerConnectionState) {
+        timeout?.cancel(); latest = nil; subscribed = []; telemetry = PM5Telemetry(); ftmsTelemetry = FTMSTelemetry()
         state = reason; onInterruption?()
     }
 }
 
-extension PM5Connection: @preconcurrency CBCentralManagerDelegate {
+extension RowerConnection: @preconcurrency CBCentralManagerDelegate {
     func centralManagerDidUpdateState(_ central: CBCentralManager) { refreshBluetoothState() }
 
     func centralManager(_ central: CBCentralManager, didDiscover peripheral: CBPeripheral,
                         advertisementData: [String: Any], rssi RSSI: NSNumber) {
         guard state == .scanning else { return }
         let name = advertisementData[CBAdvertisementDataLocalNameKey] as? String ?? peripheral.name ?? ""
-        guard name.uppercased().hasPrefix("PM5"), lockedDeviceID == nil || lockedDeviceID == peripheral.identifier else { return }
+        let services = (advertisementData[CBAdvertisementDataServiceUUIDsKey] as? [CBUUID] ?? [])
+            + (advertisementData[CBAdvertisementDataOverflowServiceUUIDsKey] as? [CBUUID] ?? [])
+            + Array((advertisementData[CBAdvertisementDataServiceDataKey] as? [CBUUID: Data] ?? [:]).keys)
+        let concept2 = name.uppercased().hasPrefix("PM5") || services.contains(Self.rowing)
+        guard concept2 || services.contains(Self.fitness), lockedDeviceID == nil || lockedDeviceID == peripheral.identifier else { return }
         peripherals[peripheral.identifier] = peripheral
-        let device = PM5Device(id: peripheral.identifier, name: name, signal: RSSI.intValue)
+        let device = RowerDevice(id: peripheral.identifier, name: name.isEmpty ? "FTMS" : name, signal: RSSI.intValue, deviceProtocol: concept2 ? .concept2 : .ftms)
         if let i = devices.firstIndex(where: { $0.id == device.id }) { devices[i] = device }
         else { devices.append(device) }
         devices.sort { $0.signal > $1.signal }
@@ -171,9 +181,9 @@ extension PM5Connection: @preconcurrency CBCentralManagerDelegate {
         guard wantsConnection, self.peripheral?.identifier == peripheral.identifier else {
             central.cancelPeripheralConnection(peripheral); return
         }
-        subscribed = []; telemetry = PM5Telemetry(); latest = nil
+        subscribed = []; telemetry = PM5Telemetry(); ftmsTelemetry = FTMSTelemetry(); latest = nil
         peripheral.delegate = self
-        peripheral.discoverServices([Self.rowing])
+        peripheral.discoverServices([Self.rowing, Self.fitness])
     }
 
     func centralManager(_ central: CBCentralManager, didFailToConnect peripheral: CBPeripheral, error: (any Error)?) {
@@ -182,7 +192,7 @@ extension PM5Connection: @preconcurrency CBCentralManagerDelegate {
 
     func centralManager(_ central: CBCentralManager, didDisconnectPeripheral peripheral: CBPeripheral, error: (any Error)?) {
         guard self.peripheral?.identifier == peripheral.identifier else { return }
-        latest = nil; telemetry = PM5Telemetry(); subscribed = []; onInterruption?()
+        latest = nil; telemetry = PM5Telemetry(); ftmsTelemetry = FTMSTelemetry(); subscribed = []; onInterruption?()
         if wantsConnection && central.state == .poweredOn {
             state = .reconnecting
             central.connect(peripheral); connectionDeadline()
@@ -190,16 +200,31 @@ extension PM5Connection: @preconcurrency CBCentralManagerDelegate {
     }
 }
 
-extension PM5Connection: @preconcurrency CBPeripheralDelegate {
+extension RowerConnection: @preconcurrency CBPeripheralDelegate {
     func peripheral(_ peripheral: CBPeripheral, didDiscoverServices error: (any Error)?) {
         guard wantsConnection, self.peripheral?.identifier == peripheral.identifier else { return }
-        guard error == nil, let service = peripheral.services?.first(where: { $0.uuid == Self.rowing }) else { fail(); return }
-        peripheral.discoverCharacteristics([Self.general, Self.additional, Self.stroke, Self.rate], for: service)
+        guard error == nil else { fail(); return }
+        if let service = peripheral.services?.first(where: { $0.uuid == Self.rowing }) {
+            selectedDevice?.deviceProtocol = .concept2
+            peripheral.discoverCharacteristics([Self.general, Self.additional, Self.stroke, Self.rate], for: service)
+        } else if let service = peripheral.services?.first(where: { $0.uuid == Self.fitness }) {
+            selectedDevice?.deviceProtocol = .ftms
+            peripheral.discoverCharacteristics([Self.rowerData], for: service)
+        } else { disconnect(); state = .notRower }
     }
 
     func peripheral(_ peripheral: CBPeripheral, didDiscoverCharacteristicsFor service: CBService, error: (any Error)?) {
         guard wantsConnection, self.peripheral?.identifier == peripheral.identifier else { return }
         let characteristics = service.characteristics ?? []
+        if service.uuid == Self.fitness {
+            guard error == nil else { fail(); return }
+            guard let characteristic = characteristics.first(where: { $0.uuid == Self.rowerData && $0.properties.contains(.notify) }) else {
+                disconnect(); state = .notRower; return
+            }
+            // Receive telemetry only; no Fitness Machine Control Point writes.
+            peripheral.setNotifyValue(true, for: characteristic)
+            return
+        }
         guard error == nil, [Self.general, Self.additional].allSatisfy({ id in
             characteristics.contains { $0.uuid == id && $0.properties.contains(.notify) }
         }) else { fail(); return }
@@ -214,7 +239,7 @@ extension PM5Connection: @preconcurrency CBPeripheralDelegate {
 
     func peripheral(_ peripheral: CBPeripheral, didUpdateNotificationStateFor characteristic: CBCharacteristic, error: (any Error)?) {
         guard wantsConnection, self.peripheral?.identifier == peripheral.identifier else { return }
-        let required = [Self.general, Self.additional]
+        let required = requiredNotifications
         guard error == nil, characteristic.isNotifying else {
             if required.contains(characteristic.uuid) { fail() }; return
         }
@@ -225,6 +250,12 @@ extension PM5Connection: @preconcurrency CBPeripheralDelegate {
     func peripheral(_ peripheral: CBPeripheral, didUpdateValueFor characteristic: CBCharacteristic, error: (any Error)?) {
         guard wantsConnection, self.peripheral?.identifier == peripheral.identifier, error == nil,
               let data = characteristic.value, let device = selectedDevice else { return }
+        if characteristic.uuid == Self.rowerData, device.deviceProtocol == .ftms {
+            guard let snapshot = ftmsTelemetry.receive(data, at: Date()) else { return }
+            latest = snapshot
+            if isConnected { onSnapshot?(snapshot, device) }
+            return
+        }
         let short: UInt16
         switch characteristic.uuid {
         case Self.general: short = 0x0031
@@ -234,14 +265,14 @@ extension PM5Connection: @preconcurrency CBPeripheralDelegate {
         }
         guard let packet = PM5Packet.decode(characteristic: short, data: data),
               let snapshot = telemetry.receive(packet, at: Date()) else { return }
-        latest = snapshot
-        if isConnected { onSnapshot?(snapshot, device) }
+        latest = RowerSnapshot(snapshot)
+        if isConnected { onSnapshot?(RowerSnapshot(snapshot), device) }
     }
 
     func peripheral(_ peripheral: CBPeripheral, didModifyServices invalidatedServices: [CBService]) {
         guard wantsConnection, self.peripheral?.identifier == peripheral.identifier,
-              invalidatedServices.contains(where: { $0.uuid == Self.rowing }) else { return }
-        latest = nil; subscribed = []; telemetry = PM5Telemetry(); onInterruption?()
-        state = .connecting; connectionDeadline(); peripheral.discoverServices([Self.rowing])
+              invalidatedServices.contains(where: { [Self.rowing, Self.fitness].contains($0.uuid) }) else { return }
+        latest = nil; subscribed = []; telemetry = PM5Telemetry(); ftmsTelemetry = FTMSTelemetry(); onInterruption?()
+        state = .connecting; connectionDeadline(); peripheral.discoverServices([Self.rowing, Self.fitness])
     }
 }

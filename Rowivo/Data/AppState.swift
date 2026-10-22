@@ -28,12 +28,15 @@ struct AppState: Codable, Sendable {
     var revisions: [PlanRevision] = []
     var pendingAdjustment: PendingAdjustment?
     var clock: WorkoutClock?
-    var currentPM5Recording: PM5Recording?
+    // Historical JSON key, now stores measurements from any supported rower.
+    var currentPM5Recording: RowerRecording?
     var hasAIConsent = false
     var checkedInCompletionID: UUID?
     var modelID = "claude-sonnet-4-6"
     var cloudExport: CloudExportSettings?
     var restoreRecoveryName: String?
+    var workoutPreferences: WorkoutPreferences?
+    var automaticallyPaused: Bool?
 }
 
 struct CloudExportSettings: Codable, Sendable {
@@ -51,4 +54,10 @@ struct CloudExportSettings: Codable, Sendable {
     var payload: Data
     var updatedAt: Date
     init(payload: Data) { key = "primary"; self.payload = payload; updatedAt = Date() }
+}
+
+struct WorkoutPreferences: Codable, Equatable, Sendable {
+    var automaticPause = false
+    var powerThreshold = 6
+    var phaseSounds = true
 }

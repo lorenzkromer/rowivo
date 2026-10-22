@@ -27,6 +27,8 @@ struct WorkoutEditorView: View {
     @State private var step: WorkoutSegment?
     @State private var addingIntervals = false
     @State private var reordering = false
+    @State private var stepsToDelete: Set<UUID> = []
+    @State private var confirmingStepDeletion = false
     @State private var failure: String?
 
     init(request: WorkoutEditorRequest) {
@@ -74,7 +76,10 @@ struct WorkoutEditorView: View {
                             }.frame(minHeight: 44).contentShape(Rectangle())
                         }.buttonStyle(.plain).accessibilityIdentifier("editor.step.\(index)")
                     }
-                    .onDelete { workout.segments.remove(atOffsets: $0) }
+                    .onDelete { offsets in
+                        stepsToDelete = Set(offsets.map { workout.segments[$0].id })
+                        confirmingStepDeletion = true
+                    }
                     .onMove { workout.segments.move(fromOffsets: $0, toOffset: $1) }
                 } header: {
                     HStack {
@@ -113,6 +118,13 @@ struct WorkoutEditorView: View {
                 }
             }
             .sheet(isPresented: $addingIntervals) { IntervalEditorView { insert($0) } }
+            .confirmationDialog("Delete selected steps?", isPresented: $confirmingStepDeletion, titleVisibility: .visible) {
+                Button("Delete steps", role: .destructive) {
+                    workout.segments.removeAll { stepsToDelete.contains($0.id) }
+                    stepsToDelete = []
+                }
+                Button("Cancel", role: .cancel) { stepsToDelete = [] }
+            }
         }.interactiveDismissDisabled()
     }
 
@@ -217,6 +229,8 @@ private struct IntervalEditorView: View {
 struct PlanOrderView: View {
     @Environment(RowivoStore.self) private var store
     @Environment(\.dismiss) private var dismiss
+    @State private var workoutsToDelete: [UUID] = []
+    @State private var confirmingDeletion = false
     var body: some View {
         NavigationStack {
             List {
@@ -228,7 +242,8 @@ struct PlanOrderView: View {
                         }
                         .onMove { store.reorderWorkouts(in: block.id, from: $0, to: $1) }
                         .onDelete { offsets in
-                            for index in offsets { store.deleteWorkout(block.workouts[index].id) }
+                            workoutsToDelete = offsets.map { block.workouts[$0].id }
+                            confirmingDeletion = true
                         }
                     }
                 }
@@ -236,6 +251,13 @@ struct PlanOrderView: View {
                 .disabled(store.state.clock != nil)
                 .navigationTitle("Organize plan").navigationBarTitleDisplayMode(.inline)
                 .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
+                .confirmationDialog("Delete selected workouts?", isPresented: $confirmingDeletion, titleVisibility: .visible) {
+                    Button("Delete workouts", role: .destructive) {
+                        for id in workoutsToDelete { store.deleteWorkout(id) }
+                        workoutsToDelete = []
+                    }
+                    Button("Cancel", role: .cancel) { workoutsToDelete = [] }
+                }
         }
     }
 }

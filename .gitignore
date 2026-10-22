@@ -9,3 +9,4 @@ xcuserdata/
 !.env.example
 *.xcresult
 *.log
+__pycache__/

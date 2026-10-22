@@ -1,4 +1,4 @@
-// App data flows: ../docs/jev.md, file-storage.md, watch.md and current source.
+// App data flows: ../docs/file-storage.md, watch.md and current source.
 // Hosting basis: kromerlorenz-infrastructure/handbuch/inhalt/lieferanten/index.md
 // and monitoring/loki-config.yml. See README.md for pre-publication checks.
 export const privacy = {
@@ -8,7 +8,7 @@ export const privacy = {
       'Informationen zum Datenschutz auf der Rowivo-Webseite und in der Rowivo-App.',
     intro:
       'Hier erfährst du, welche Daten beim Besuch dieser Webseite und bei der Nutzung von Rowivo verarbeitet werden. Die Webseite und die App haben unterschiedliche Datenflüsse.',
-    updated: 'Stand: 24. September 2026',
+    updated: 'Stand: 14. Oktober 2026',
     controller: 'Verantwortlicher',
     website: 'Webseite',
     app: 'Rowivo-App',
@@ -57,22 +57,12 @@ export const privacy = {
         title: '6. Export und Trainingssicherungen',
         paragraphs: [
           'Auf deinen Wunsch exportiert Rowivo CSV-Dateien oder eine wiederherstellbare .rowivo-Trainingssicherung. Du wählst den Zielordner über die Dateien-Funktionen von iOS aus. Wenn dieser Ordner bei iCloud Drive oder einem anderen Cloud-Anbieter liegt, übernimmt dieser Anbieter die Speicherung bzw. Übertragung nach deinen dortigen Einstellungen. Optionale automatische Dateikopien verwenden ebenfalls den von dir gewählten Ordner.',
-          'Trainingssicherungen können dein Profil, deinen Plan, Verlauf, Notizen und Messwerte enthalten. Der TypeSafe-API-Schlüssel ist nicht Bestandteil dieser Exporte. Bereits exportierte Dateien, Cloud-Kopien und externe Sicherungen bleiben beim Löschen der lokalen Rowivo-Daten bestehen; du verwaltest und löschst sie beim jeweiligen Dateianbieter.',
-        ],
-      },
-      {
-        title: '7. Optionale Jev-Vorschläge über TypeSafe',
-        paragraphs: [
-          'Jev ist eine freiwillige, experimentelle Zusatzfunktion. Du verwendest dafür deinen eigenen TypeSafe-Zugang. Der API-Schlüssel wird in den In-App-Einstellungen eingegeben und im Schlüsselbund des iPhones gespeichert, nur bei entsperrtem Gerät zugänglich und an dieses Gerät gebunden. Er wird bei Anfragen zur Authentifizierung an TypeSafe übermittelt. Du kannst ihn in der App entfernen; „Profil und Daten löschen“ entfernt ihn ebenfalls.',
-          'Erst wenn du „An TypeSafe senden und Vorschlag erhalten“ auswählst, sendet die App eine HTTPS-Anfrage direkt an api.typesafe.ai. Übermittelt werden Trainingsziel, Erfahrung, die Abschnitte der nächsten Einheit, dein Zeitbudget und bis zu drei aktuelle Trainingsrückmeldungen mit Dauer, Belastung, Beschwerdeangabe und jeweils bis zu 2.000 Zeichen Notiz sowie bis zu 2.000 Zeichen deiner aktuellen Ergänzung. Freitext kann persönliche und gesundheitliche Angaben enthalten. TypeSafe erhält durch die Verbindung auch technische Daten wie deine IP-Adresse.',
-          'Profilname, interne IDs, eigene Namen von Trainingseinheiten und Gerätemessreihen werden nicht in den Anfrageinhalt aufgenommen. Es gibt keine automatischen Anfragen im Hintergrund. Strukturierte Beschwerden in der letzten Rückmeldung blockieren derzeit die Anfrage. Das ersetzt keine Prüfung dessen, was du freiwillig in Notizen eingibst.',
-          'Der Zweck ist die Auswertung deiner Anfrage für eine kürzere oder leichtere nächste Einheit. Eine Vorschau wird vorübergehend im Arbeitsspeicher gehalten. Erst dein Übernehmen speichert die Planänderung mit einem lokalen Verlaufseintrag. Die Entscheidung über eine Änderung bleibt bei dir.',
-          'Die Verarbeitung durch TypeSafe erfolgt über deinen eigenen Anbieterzugang. Die für diesen Zugang geltenden Datenschutz- und Vertragsbedingungen enthalten die Angaben zur weiteren Verarbeitung, Speicherung und zu etwaigen internationalen Übermittlungen beim Anbieter. Die lokale Speicherung in Rowivo bedeutet nicht, dass auch die von dir an TypeSafe gesendeten Daten ausschließlich auf deinem Gerät oder innerhalb der EU verarbeitet werden. Wenn du diese Übermittlung nicht möchtest, nutze Rowivo ohne Jev; manuelle Planung und Training bleiben verfügbar.',
+          'Trainingssicherungen können dein Profil, deinen Plan, Verlauf, Notizen und Messwerte enthalten. Bereits exportierte Dateien, Cloud-Kopien und externe Sicherungen bleiben beim Löschen der lokalen Rowivo-Daten bestehen; du verwaltest und löschst sie beim jeweiligen Dateianbieter.',
         ],
       },
       {
         id: 'rights',
-        title: '8. Deine Rechte und Kontakt',
+        title: '7. Deine Rechte und Kontakt',
         paragraphs: [
           'Soweit die gesetzlichen Voraussetzungen vorliegen, hast du das Recht auf Auskunft, Berichtigung, Löschung, Einschränkung der Verarbeitung, Datenübertragbarkeit und Widerspruch nach Art. 15 bis 21 DSGVO. Gegen eine Verarbeitung auf Grundlage eines berechtigten Interesses kannst du aus Gründen, die sich aus deiner besonderen Situation ergeben, Widerspruch einlegen. Soweit eine Verarbeitung auf Einwilligung beruht, kannst du diese jederzeit mit Wirkung für die Zukunft widerrufen.',
           'Kontaktiere hierfür den oben genannten Verantwortlichen. Auf ausschließlich lokal gespeicherte Trainingsdaten haben wir keinen Fernzugriff. Für diese Daten stehen dir die Bearbeitungs-, Export- und Löschfunktionen der App zur Verfügung. Beim Entfernen einer Berechtigung werden bereits exportierte oder extern gespeicherte Daten nicht automatisch entfernt.',
@@ -88,7 +78,7 @@ export const privacy = {
       'How personal data is handled on the Rowivo website and in the Rowivo app.',
     intro:
       'This notice explains how data is handled when you visit this website and use Rowivo. The website and the app have different data flows.',
-    updated: 'Last updated: 24 September 2026',
+    updated: 'Last updated: 14 October 2026',
     controller: 'Controller',
     website: 'Website',
     app: 'Rowivo app',
@@ -137,27 +127,17 @@ export const privacy = {
         title: '6. Exports and training backups',
         paragraphs: [
           'At your request, Rowivo exports CSV files or a restorable .rowivo training backup. You choose the destination through iOS Files. If you select iCloud Drive or another cloud provider, that provider handles storage and transfer according to your settings. Optional automatic file copies also use the folder you select.',
-          'Training backups may contain your profile, plan, history, notes and readings. The TypeSafe API key is not included in these exports. Exported files, cloud copies and external backups remain when you delete local Rowivo data; you manage and delete them with the relevant file provider.',
-        ],
-      },
-      {
-        title: '7. Optional Jev suggestions through TypeSafe',
-        paragraphs: [
-          'Jev is a voluntary, experimental feature using your own TypeSafe access. You enter your API key in the app settings. It is stored in your iPhone’s keychain, accessible only while the device is unlocked and bound to that device. The key is sent to TypeSafe to authenticate requests. You can remove it in the app; deleting your profile and data also removes it.',
-          'Only when you select “Send to TypeSafe and get suggestion” does the app send an HTTPS request directly to api.typesafe.ai. It includes your training goal, experience, next session’s segments, time budget and up to three recent workout feedback entries with duration, effort, discomfort and up to 2,000 characters of notes each, plus up to 2,000 characters of your current note. Free text may contain personal and health information. TypeSafe also receives technical connection data such as your IP address.',
-          'The request content does not include your profile name, internal IDs, custom workout names or device measurement series. No requests are made automatically in the background. A structured discomfort report in the latest feedback currently blocks the request. This does not replace reviewing what you voluntarily put in notes.',
-          'The purpose is to assess your request for a shorter or easier next session. A preview is held temporarily in memory. Only applying it saves the plan change and a local history entry. You remain in control of the change.',
-          'Processing by TypeSafe takes place through your own provider account. The privacy and contractual terms for that account describe further processing, retention and any international transfers by the provider. Local storage in Rowivo does not mean that data you send to TypeSafe is processed only on your device or within the EU. If you do not want this transfer, use Rowivo without Jev; manual planning and workouts remain available.',
+          'Training backups may contain your profile, plan, history, notes and readings. Exported files, cloud copies and external backups remain when you delete local Rowivo data; you manage and delete them with the relevant file provider.',
         ],
       },
       {
         id: 'rights',
-        title: '8. Your rights and contact',
+        title: '7. Your rights and contact',
         paragraphs: [
           'Subject to the applicable legal requirements, you have rights of access, rectification, erasure, restriction, portability and objection under Articles 15–21 GDPR. You may object to processing based on legitimate interests on grounds relating to your particular situation. Where processing is based on consent, you may withdraw that consent at any time for the future.',
           'Contact the controller listed above to exercise these rights. We have no remote access to training data stored exclusively on your device. You can use the app’s editing, export and deletion features for that data. Revoking a permission does not automatically remove data already exported or stored elsewhere.',
           'You may complain to a data protection supervisory authority, particularly in the country of your habitual residence, workplace or the alleged infringement. In Austria, this is the Austrian Data Protection Authority, Barichgasse 40–42, 1030 Vienna, dsb.gv.at.',
-          'Rowivo does not make automated decisions that produce legal or similarly significant effects. Training suggestions are not applied automatically. This notice will be updated when features or data processing change.',
+          'Rowivo does not make automated decisions that produce legal or similarly significant effects. This notice will be updated when features or data processing change.',
         ],
       },
     ],

@@ -490,29 +490,6 @@ summary:focus-visible {
   font-size: 14px;
   font-weight: 700;
 }
-.jev-inner {
-  background: var(--pale);
-  padding: 45px;
-  border-radius: 25px;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 65px;
-}
-.jev-inner h2 {
-  font-size: 34px;
-}
-.jev-inner .eyebrow {
-  font-size: 10px;
-  color: var(--teal);
-}
-.jev-inner > div > p:not(.eyebrow) {
-  font-size: 16px;
-}
-.jev-inner .fine-print {
-  font-size: 12px !important;
-  color: var(--muted);
-  margin-top: 17px;
-}
 .faq-section {
   display: grid;
   grid-template-columns: 0.8fr 1.2fr;
@@ -731,10 +708,6 @@ details p {
   .privacy-section {
     gap: 50px;
   }
-  .jev-inner {
-    gap: 35px;
-    padding: 35px;
-  }
   .faq-section {
     gap: 40px;
   }
@@ -882,14 +855,6 @@ details p {
   }
   .privacy-points li {
     font-size: 16px;
-  }
-  .jev-inner {
-    grid-template-columns: 1fr;
-    gap: 24px;
-    padding: 28px;
-  }
-  .jev-inner h2 {
-    font-size: 31px;
   }
   .faq-section {
     grid-template-columns: 1fr;

@@ -48,6 +48,11 @@ Screenshots: [Soll-Ist-Vergleich](screenshots/review-plan-actual-en.png), [deuts
 - Eigene Cloud: echte iCloud-, Google-Drive- und OneDrive-Erweiterungen, dauerhafte Ordnerfreigaben und Uploads auf einem zweiten Gerät bleiben zu prüfen. Bisherige Kopien sind Sicherungen, keine Gerätesynchronisierung.
 - Bedienungshilfen und Layout: VoiceOver, große Schrift sowie weitere iPhone-Größen benötigen einen eigenen Durchgang. Der aktuelle visuelle Durchgang verwendet Deutsch und Englisch auf dem iPhone-17-Pro-Simulator.
 - Profiländerungen nach dem Einstieg und das Löschen einzelner Verlaufseinträge sind noch nicht umgesetzt.
-- Frei terminierbare geplante Einheiten, weitere Sprachen, HealthKit und Apple Watch sind zusätzliche Produktarbeit. Der KI-Zugang bleibt aus der App entfernt.
+- Frei terminierbare geplante Einheiten, weitere Sprachen, erweiterte Health-Messwerte und eigenständige Watch-Aufzeichnung sind zusätzliche Produktarbeit. Die erste [Watch-Companion-App](watch.md) wurde am 4. September ergänzt. Der KI-Zugang bleibt aus der App entfernt.
 
 Signing, General, geteilte Schemes, Info.plist und Projektvorlage werden bei diesem Review nicht verändert.
+
+
+## Ergänzung: Profil und Trainingshinweise (4. September 2026)
+
+Profilbearbeitung ist unter **Einstellungen → Dein Profil** ergänzt. Die bisherige Ruhetag-Sperre ist durch einen bestätigbaren Hinweis auf iPhone und Watch ersetzt. Frühere Beschreibungen der Sperre in diesem historischen Review gelten damit nicht mehr; der Beschwerden-Check-in bleibt bestehen. Änderungen am Profil erhalten Plan und Verlauf. Details und aktuelle Testnachweise stehen im letzten Abschnitt von [implementation.md](implementation.md). Der erste echte TestFlight-Trainingsdurchlauf steht noch an; [persönlicher Leitfaden](testleitfaden-testflight.md).

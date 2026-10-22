@@ -1,10 +1,14 @@
 import SwiftUI
+import EventKit
+import EventKitUI
 import RowivoCore
 
 struct PlanView: View {
     @Environment(RowivoStore.self) private var store
     @State private var editor: WorkoutEditorRequest?
     @State private var organizing = false
+    @State private var blockToDelete: UUID?
+    @State private var confirmingBlockDeletion = false
     var body: some View {
         NavigationStack {
             ScrollView {
@@ -40,7 +44,7 @@ struct PlanView: View {
                                             Button("Add workout") { newWorkout(in: block.id) }
                                             Button("Move block up") { store.moveBlock(block.id, by: -1) }.disabled(index == 0)
                                             Button("Move block down") { store.moveBlock(block.id, by: 1) }.disabled(index == plan.blocks.count - 1)
-                                            if block.workouts.isEmpty { Button("Delete empty block", role: .destructive) { store.deleteEmptyBlock(block.id) } }
+                                            if block.workouts.isEmpty { Button("Delete empty block", role: .destructive) { blockToDelete = block.id; confirmingBlockDeletion = true } }
                                         } label: { Image(systemName: "ellipsis").frame(width: 44, height: 44).contentShape(Rectangle()) }
                                         .disabled(store.state.clock != nil).accessibilityLabel("Block options")
                                     }
@@ -78,6 +82,13 @@ struct PlanView: View {
                 }
                 .sheet(item: $editor) { WorkoutEditorView(request: $0) }
                 .sheet(isPresented: $organizing) { PlanOrderView() }
+                .confirmationDialog("Delete this empty block?", isPresented: $confirmingBlockDeletion, titleVisibility: .visible) {
+                    Button("Delete empty block", role: .destructive) {
+                        if let blockToDelete { store.deleteEmptyBlock(blockToDelete) }
+                        blockToDelete = nil
+                    }
+                    Button("Cancel", role: .cancel) { blockToDelete = nil }
+                }
         }
     }
     private func newWorkout(in blockID: UUID? = nil) {
@@ -134,6 +145,9 @@ struct WorkoutDetailView: View {
     @Environment(RowivoStore.self) private var store
     var workout: Workout
     @State private var logging = false
+    @State private var calendar = false
+    @State private var confirmingStart = false
+    @State private var startControlToken: UUID?
     @State private var editor: WorkoutEditorRequest?
     @State private var removing = false
     @State private var editingCompletion: WorkoutCompletion?
@@ -173,6 +187,10 @@ struct WorkoutDetailView: View {
                             Text("These are the original targets. Your recorded results are shown above.")
                                 .font(.caption).foregroundStyle(RowivoStyle.muted)
                         }
+                        Button("Add to Calendar", systemImage: "calendar.badge.plus") { calendar = true }
+                            .accessibilityIdentifier("workout.calendar")
+                        Text("Choose a date and calendar. Later changes to your plan do not update this event.")
+                            .font(.caption).foregroundStyle(RowivoStyle.muted)
                         Divider()
                         Text("Workout steps").font(.headline)
                         SegmentBar(workout: currentWorkout)
@@ -204,7 +222,7 @@ struct WorkoutDetailView: View {
                     }
                 }
                 if isNext && store.canTrain && store.state.clock == nil {
-                    PM5ConnectionCard()
+                    RowerConnectionCard()
                 }
             }.padding(22).padding(.bottom, 20)
         }.rowivoScreen().navigationTitle("Workout").navigationBarTitleDisplayMode(.inline)
@@ -214,7 +232,11 @@ struct WorkoutDetailView: View {
                         if store.state.clock?.workoutID == workout.id {
                             Button("Resume session") { store.showingWorkout = true }.buttonStyle(PrimaryButton())
                         } else {
-                            Button("Start rowing") { store.start(currentWorkout) }.buttonStyle(PrimaryButton())
+                            Button("Start rowing") {
+                                if store.requiresRecentTrainingConfirmation {
+                                    startControlToken = store.watchControlToken; confirmingStart = true
+                                } else { store.start(currentWorkout) }
+                            }.buttonStyle(PrimaryButton())
                                 .disabled(!store.canTrain).opacity(store.canTrain ? 1 : 0.45).accessibilityIdentifier("workout.start")
                         }
                         if store.state.clock == nil {
@@ -225,8 +247,8 @@ struct WorkoutDetailView: View {
                         }
                         if store.needsCheckIn {
                             Text("Check in before your next session.").font(.caption).foregroundStyle(RowivoStyle.muted)
-                        } else if !store.canTrain, let date = PlanEngine.availableDate(completions: store.state.completions) {
-                            Text(String(format: String(localized: "Your next session is available %@."), date.formatted(.dateTime.weekday(.wide).day().month(.abbreviated))))
+                        } else if store.requiresRecentTrainingConfirmation && store.state.clock == nil {
+                            Text("You trained recently. You can choose to start another session.")
                                 .font(.caption).foregroundStyle(RowivoStyle.muted)
                         }
                     }.padding(.horizontal, 22).padding(.vertical, 13)
@@ -235,6 +257,14 @@ struct WorkoutDetailView: View {
                         .font(.headline).foregroundStyle(RowivoStyle.teal).padding(20).frame(maxWidth: .infinity)
                         .accessibilityIdentifier("workout.saved")
                 }
+            }
+            .alert("Start another session?", isPresented: $confirmingStart, presenting: startControlToken) { token in
+                Button("Cancel", role: .cancel) { }
+                Button("Start anyway") {
+                    store.start(currentWorkout, acknowledgingRecentTraining: true, expectedControlToken: token)
+                }
+            } message: { _ in
+                Text("You trained today or yesterday. Take a moment to decide whether you want to train again.")
             }
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
@@ -263,6 +293,7 @@ struct WorkoutDetailView: View {
                 }
             }
             .sheet(item: $editingCompletion) { RecordedWorkoutEditorView(completion: $0) }
+            .sheet(isPresented: $calendar) { WorkoutCalendarEditor(workout: currentWorkout) }
             .sheet(isPresented: $logging) { WorkoutFeedbackView(workout: currentWorkout, seconds: currentWorkout.totalSeconds, manual: true) }
             .sheet(item: $editor) { WorkoutEditorView(request: $0) }
             .confirmationDialog("Delete this workout?", isPresented: $removing, titleVisibility: .visible) {
@@ -278,4 +309,29 @@ struct WorkoutDetailView: View {
                        blockID: plan.block(for: currentWorkout.id)?.id, baseRevision: plan.revision)
     }
 
+}
+
+/// The system editor saves to a calendar chosen by the user, without reading their calendars.
+struct WorkoutCalendarEditor: UIViewControllerRepresentable {
+    let workout: Workout
+    @Environment(\.dismiss) private var dismiss
+    func makeCoordinator() -> Coordinator { Coordinator(dismiss: { dismiss() }) }
+    func makeUIViewController(context: Context) -> EKEventEditViewController {
+        let editor = EKEventEditViewController()
+        let store = EKEventStore()
+        editor.eventStore = store; editor.editViewDelegate = context.coordinator
+        let event = EKEvent(eventStore: store)
+        event.title = "Rowivo · " + workout.displayName
+        event.startDate = Date().addingTimeInterval(3600)
+        event.endDate = event.startDate.addingTimeInterval(Double(workout.totalSeconds))
+        event.notes = workout.segments.map { localized($0.kind.rawValue) + " · " + durationText($0.seconds) }.joined(separator: "\n")
+        editor.event = event
+        return editor
+    }
+    func updateUIViewController(_ uiViewController: EKEventEditViewController, context: Context) {}
+    final class Coordinator: NSObject, EKEventEditViewDelegate {
+        let dismiss: () -> Void
+        init(dismiss: @escaping () -> Void) { self.dismiss = dismiss }
+        func eventEditViewController(_ controller: EKEventEditViewController, didCompleteWith action: EKEventEditViewAction) { dismiss() }
+    }
 }

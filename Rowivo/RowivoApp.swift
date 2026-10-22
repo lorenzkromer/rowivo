@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import RowivoCore
 
 @main struct RowivoApp: App {
     private let store: RowivoStore?
@@ -18,6 +19,12 @@ import SwiftData
                 store?.createProfile(.init(name: "Alex"), useTemplate: true)
             }
             #endif
+            var enableWatch = !isTesting
+            #if DEBUG
+            // An explicit paired-simulator run can use real transport with isolated phone data.
+            if isTesting && ProcessInfo.processInfo.arguments.contains("--enable-watch-connection") { enableWatch = true }
+            #endif
+            if enableWatch, let store { store.watchConnection = PhoneWatchConnection(store: store) }
         } catch { store = nil }
     }
     var body: some Scene {
@@ -65,18 +72,19 @@ struct RootView: View {
         .alert("Something needs your attention", isPresented: Binding(get: { store.errorMessage != nil }, set: { if !$0 { store.errorMessage = nil } })) {
             Button("OK") { store.errorMessage = nil }
         } message: { Text(store.errorMessage ?? "") }
-        .fullScreenCover(isPresented: $store.showingWorkout) {
-            if let workout = store.activeWorkout { ActiveWorkoutView(workout: workout) }
+        .fullScreenCover(item: Binding(get: { store.showingWorkout ? store.activeWorkout : nil },
+                                       set: { store.showingWorkout = $0 != nil })) { workout in
+            ActiveWorkoutView(workout: workout)
         }
         .task {
             if store.state.clock != nil { store.showingWorkout = true }
             await store.exportIfNeeded()
         }
         .onChange(of: scenePhase) { _, phase in
-            if phase != .active { store.flushPM5() }
+            if phase != .active { store.flushRower() }
             // Permission alerts make the scene inactive. Keep the user's search intent
             // through that alert; stop scanning only when the app really backgrounds.
-            if phase == .background { store.pm5.stopSearch() }
+            if phase == .background { store.rower.stopSearch() }
             if phase == .active { Task { await store.exportIfNeeded() } }
         }
     }

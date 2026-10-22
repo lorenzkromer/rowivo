@@ -1,9 +1,152 @@
 import XCTest
+import Security
 import SwiftData
 import RowivoCore
 @testable import Rowivo
 
 @MainActor final class RowivoTests: XCTestCase {
+    func testDeleteSavedCompletionPersistsAndReopensPlanWithoutRemovingOtherRecords() throws {
+        let store = try makeStore()
+        let plan = try XCTUnwrap(store.state.plan)
+        let workout = plan.workouts[0]
+        var recording = RowerRecording(deviceID: UUID(), deviceName: "Test PM5")
+        recording.receive(.init(date: Date(), general: .init(elapsed: 1, distance: 4)), workoutElapsed: 1)
+        let deleted = WorkoutCompletion(workout: workout, durationSeconds: workout.totalSeconds,
+                                        effort: 3, discomfort: true, note: "Delete", manuallyRecorded: false, pm5: recording)
+        let kept = WorkoutCompletion(workout: plan.workouts[1], durationSeconds: plan.workouts[1].totalSeconds,
+                                     effort: 2, discomfort: false, note: "Keep", manuallyRecorded: true)
+        store.update { $0.completions = [deleted, kept]; $0.checkedInCompletionID = deleted.id }
+        let token = store.watchControlToken
+        let revisions = store.state.revisions.map(\.id)
+        XCTAssertTrue(store.deleteCompletion(deleted))
+        let reopened = try RowivoStore(container: store.container)
+        XCTAssertEqual(reopened.state.completions, [kept])
+        XCTAssertEqual(reopened.state.plan, plan)
+        XCTAssertEqual(reopened.state.revisions.map(\.id), revisions)
+        XCTAssertEqual(reopened.nextWorkout?.id, workout.id)
+        XCTAssertNil(reopened.state.checkedInCompletionID)
+        XCTAssertNotEqual(store.watchControlToken, token)
+        let exported = try TrainingArchive(state: reopened.state)
+        XCTAssertEqual(exported.completions, [kept])
+    }
+
+    func testDeletingPartialRecordingKeepsFullCompletionAndCheckIn() throws {
+        let store = try makeStore(), workout = try XCTUnwrap(store.nextWorkout)
+        let partial = WorkoutCompletion(workout: workout, durationSeconds: 20, effort: 2, discomfort: false, note: "", manuallyRecorded: true)
+        let full = WorkoutCompletion(workout: workout, durationSeconds: workout.totalSeconds, effort: 2, discomfort: true, note: "", manuallyRecorded: true)
+        store.update { $0.completions = [partial, full]; $0.checkedInCompletionID = full.id }
+        let next = store.nextWorkout
+        XCTAssertTrue(store.deleteCompletion(partial))
+        XCTAssertEqual(store.nextWorkout, next)
+        XCTAssertEqual(store.state.checkedInCompletionID, full.id)
+        XCTAssertEqual(store.state.completions, [full])
+    }
+
+    func testDeleteRejectsStaleRepeatedAndActiveSessionRequests() throws {
+        let store = try makeStore(), workout = try XCTUnwrap(store.nextWorkout)
+        XCTAssertTrue(store.complete(workout, seconds: 20, effort: 2, discomfort: false, note: "", manual: true))
+        let original = try XCTUnwrap(store.state.completions.first)
+        var edit = RecordedWorkoutEdit(original); edit.note = "Changed after opening confirmation"
+        XCTAssertTrue(store.updateCompletion(original, with: edit))
+        let current = try XCTUnwrap(store.state.completions.first)
+        XCTAssertFalse(store.deleteCompletion(original))
+        store.start(workout, acknowledgingRecentTraining: true)
+        XCTAssertNotNil(store.state.clock)
+        XCTAssertFalse(store.deleteCompletion(current))
+        XCTAssertEqual(store.state.completions, [current])
+        store.discardTimer()
+        XCTAssertTrue(store.deleteCompletion(current))
+        XCTAssertFalse(store.deleteCompletion(current))
+        XCTAssertTrue(store.state.completions.isEmpty)
+    }
+
+    func testProfileEditPersistsWithoutReplacingPlanHistoryOrActiveSession() throws {
+        let store = try makeStore()
+        let first = try XCTUnwrap(store.nextWorkout)
+        XCTAssertTrue(store.complete(first, seconds: first.totalSeconds, effort: 2, discomfort: false, note: "Keep me", manual: true,
+                                     trainedAt: Date().addingTimeInterval(-4 * 86400)))
+        store.start(try XCTUnwrap(store.nextWorkout))
+        let plan = store.state.plan, logs = store.state.completions, clock = store.state.clock
+        let revisions = store.state.revisions.map(\.id)
+        let original = try XCTUnwrap(store.state.profile)
+        let token = store.watchControlToken
+        var edited = original
+        edited.name = "  Robin  "; edited.goal = .endurance; edited.experience = .returning; edited.sessionMinutes = 40
+        XCTAssertTrue(store.updateProfile(edited, replacing: original))
+        let reopened = try RowivoStore(container: store.container)
+        XCTAssertEqual(reopened.state.profile?.name, "Robin")
+        XCTAssertEqual(reopened.state.profile?.goal, .endurance)
+        XCTAssertEqual(reopened.state.profile?.experience, .returning)
+        XCTAssertEqual(reopened.state.profile?.sessionMinutes, 40)
+        XCTAssertEqual(reopened.state.plan, plan); XCTAssertEqual(reopened.state.completions, logs)
+        XCTAssertEqual(reopened.state.clock, clock); XCTAssertEqual(reopened.state.revisions.map(\.id), revisions)
+        XCTAssertNotEqual(store.watchControlToken, token)
+        let draft = WorkoutEditorRequest.new(plan: try XCTUnwrap(plan), minutes: 40, blockID: nil)
+        XCTAssertEqual(draft.workout.totalSeconds, 2400)
+        XCTAssertEqual(try TrainingArchive.decode(TrainingArchive(state: reopened.state).encoded()).profile, reopened.state.profile)
+    }
+
+    func testProfileEditRejectsInvalidAndStaleDraftsAndNoOpDoesNotRotateControls() throws {
+        let store = try makeStore()
+        let original = try XCTUnwrap(store.state.profile)
+        let token = store.watchControlToken
+        XCTAssertTrue(store.updateProfile(original, replacing: original))
+        XCTAssertEqual(store.watchControlToken, token)
+        for name in ["  ", String(repeating: "a", count: 201)] {
+            var invalid = original; invalid.name = name
+            XCTAssertFalse(store.updateProfile(invalid, replacing: original))
+        }
+        for minutes in [0, 61] {
+            var invalid = original; invalid.sessionMinutes = minutes
+            XCTAssertFalse(store.updateProfile(invalid, replacing: original))
+        }
+        XCTAssertEqual(store.state.profile, original)
+        var firstEdit = original; firstEdit.name = "Robin"
+        XCTAssertTrue(store.updateProfile(firstEdit, replacing: original))
+        var stale = original; stale.name = "Outdated"
+        XCTAssertFalse(store.updateProfile(stale, replacing: original))
+        XCTAssertEqual(store.state.profile, firstEdit)
+    }
+
+    func testRecentTrainingRequiresConfirmationButConfirmedSessionCanSaveAndRelaunch() throws {
+        let store = try makeStore()
+        let first = try XCTUnwrap(store.nextWorkout)
+        XCTAssertTrue(store.complete(first, seconds: first.totalSeconds, effort: 2, discomfort: false, note: "", manual: true))
+        let next = try XCTUnwrap(store.nextWorkout)
+        XCTAssertTrue(store.canTrain); XCTAssertTrue(store.requiresRecentTrainingConfirmation)
+        store.start(next)
+        XCTAssertNil(store.state.clock)
+        XCTAssertFalse(store.complete(next, seconds: 60, effort: 2, discomfort: false, note: "", manual: false))
+        store.start(next, acknowledgingRecentTraining: true, expectedControlToken: store.watchControlToken)
+        XCTAssertEqual(store.state.clock?.workoutID, next.id)
+        store.toggleTimer(); store.toggleTimer(); store.toggleTimer()
+        let reopened = try RowivoStore(container: store.container)
+        XCTAssertTrue(reopened.complete(next, seconds: 60, effort: 2, discomfort: false, note: "Confirmed", manual: false))
+        XCTAssertEqual(reopened.state.completions.count, 2)
+        XCTAssertEqual(reopened.state.completions.last?.note, "Confirmed")
+        XCTAssertNil(reopened.state.clock)
+        reopened.start(next)
+        XCTAssertNil(reopened.state.clock) // Each new start requires a fresh decision.
+    }
+
+    func testStartConfirmationCannotApplyToChangedStateOrSkipDiscomfortCheckIn() throws {
+        let store = try makeStore()
+        let first = try XCTUnwrap(store.nextWorkout)
+        XCTAssertTrue(store.complete(first, seconds: first.totalSeconds, effort: 2, discomfort: false, note: "", manual: true))
+        let next = try XCTUnwrap(store.nextWorkout)
+        let token = store.watchControlToken
+        store.addBlock()
+        store.start(next, acknowledgingRecentTraining: true, expectedControlToken: token)
+        XCTAssertNil(store.state.clock)
+        store.update { $0.completions[0].discomfort = true }
+        store.start(next, acknowledgingRecentTraining: true, expectedControlToken: store.watchControlToken)
+        XCTAssertNil(store.state.clock)
+        XCTAssertTrue(store.needsCheckIn)
+        store.checkIn()
+        store.start(next, acknowledgingRecentTraining: true, expectedControlToken: store.watchControlToken)
+        XCTAssertEqual(store.state.clock?.workoutID, next.id)
+    }
+
     func testAllSavedSessionFieldsPersistWithoutDuplicatingOrChangingPlanAndPM5() throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
@@ -13,7 +156,7 @@ import RowivoCore
         store.createProfile(.init(name: "Alex"), useTemplate: true)
         let plan = try XCTUnwrap(store.state.plan)
         let date = Date().addingTimeInterval(-2 * 86400)
-        var recording = PM5Recording(deviceID: UUID(), deviceName: "PM5 Test")
+        var recording = RowerRecording(deviceID: UUID(), deviceName: "PM5 Test")
         recording.receive(.init(date: date, general: .init(elapsed: 0, distance: 0)), workoutElapsed: 0)
         recording.receive(.init(date: date.addingTimeInterval(1), general: .init(elapsed: 1, distance: 4), heartRate: 130), workoutElapsed: 1)
         recording.breakContinuity(isGap: false)
@@ -120,6 +263,47 @@ import RowivoCore
         XCTAssertFalse(store.needsCheckIn)
     }
 
+    func testUpgradeRemovesRetiredCredentialsWithoutChangingTraining() throws {
+        let container = try ModelContainer(for: StoredState.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
+        let original = try RowivoStore(container: container)
+        XCTAssertTrue(original.createProfile(.init(name: "Keep my training"), useTemplate: true))
+        let workout = try XCTUnwrap(original.nextWorkout)
+        XCTAssertTrue(original.complete(workout, seconds: workout.totalSeconds, effort: 3, discomfort: false, note: "Keep feedback", manual: true))
+        let encoder = JSONEncoder(); encoder.outputFormatting = [.sortedKeys]
+        let before = try encoder.encode(original.state)
+        var removals = 0
+        let upgraded = try RowivoStore(container: container, removeRetiredCredentials: { removals += 1 })
+        XCTAssertEqual(removals, 1)
+        XCTAssertEqual(try encoder.encode(upgraded.state), before)
+        XCTAssertNil(upgraded.errorMessage)
+        let failed = try RowivoStore(container: container, removeRetiredCredentials: { throw CocoaError(.fileWriteUnknown) })
+        XCTAssertEqual(try encoder.encode(failed.state), before)
+        XCTAssertNotNil(failed.errorMessage)
+        let retried = try RowivoStore(container: container, removeRetiredCredentials: { removals += 1 })
+        XCTAssertEqual(removals, 2)
+        XCTAssertEqual(try encoder.encode(retried.state), before)
+        XCTAssertNil(retried.errorMessage)
+    }
+
+    func testRetiredCredentialDeletionIsIdempotentAndScoped() throws {
+        let service = "rowivo-test-retired-" + UUID().uuidString
+        let other = service + "-unrelated"
+        func query(_ service: String) -> [String: Any] {
+            [kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: service,
+             kSecAttrAccount as String: "api-key"]
+        }
+        defer { SecItemDelete(query(service) as CFDictionary); SecItemDelete(query(other) as CFDictionary) }
+        for name in [service, other] {
+            var value = query(name)
+            value[kSecValueData as String] = Data("synthetic-test-key".utf8)
+            XCTAssertEqual(SecItemAdd(value as CFDictionary, nil), errSecSuccess)
+        }
+        try RowivoStore.removeLegacyCredential(services: [service])
+        XCTAssertEqual(SecItemCopyMatching(query(service) as CFDictionary, nil), errSecItemNotFound)
+        XCTAssertEqual(SecItemCopyMatching(query(other) as CFDictionary, nil), errSecSuccess)
+        try RowivoStore.removeLegacyCredential(services: [service])
+    }
+
     func testResetDeletesPersistentTrainingAndPrivateFilesButKeepsExportedCopies() async throws {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
@@ -146,10 +330,10 @@ import RowivoCore
         let exportedName = try XCTUnwrap(store.state.cloudExport?.lastSnapshotName)
         let exportedBackup = external.appendingPathComponent(exportedName).appendingPathComponent("training.rowivo")
         store.start(try XCTUnwrap(store.nextWorkout))
-        let device = PM5Device(id: UUID(), name: "PM5 Private", signal: -50)
-        store.receivePM5(.init(date: Date(), general: .init(elapsed: 0, distance: 0)), device: device)
+        let device = RowerDevice(id: UUID(), name: "PM5 Private", signal: -50)
+        store.receiveRower(.init(date: Date(), general: .init(elapsed: 0, distance: 0)), device: device)
         XCTAssertNotNil(store.state.clock)
-        XCTAssertNotNil(store.pm5Recording)
+        XCTAssertNotNil(store.rowerRecording)
         store.update {
             $0.messages = [.init(role: .user, text: "Legacy private chat")]
             $0.hasAIConsent = true; $0.checkedInCompletionID = $0.completions.first?.id
@@ -164,9 +348,9 @@ import RowivoCore
         XCTAssertNil(store.state.currentPM5Recording); XCTAssertNil(store.state.cloudExport)
         XCTAssertNil(store.state.restoreRecoveryName); XCTAssertNil(store.state.checkedInCompletionID)
         XCTAssertFalse(store.state.hasAIConsent); XCTAssertNil(store.state.pendingAdjustment)
-        XCTAssertNil(store.pm5Recording); XCTAssertNil(store.pm5.selectedDevice)
-        XCTAssertNil(store.pm5.lockedDeviceID); XCTAssertTrue(store.pm5.devices.isEmpty)
-        XCTAssertEqual(store.pm5.state, .idle); XCTAssertFalse(store.showingWorkout)
+        XCTAssertNil(store.rowerRecording); XCTAssertNil(store.rower.selectedDevice)
+        XCTAssertNil(store.rower.lockedDeviceID); XCTAssertTrue(store.rower.devices.isEmpty)
+        XCTAssertEqual(store.rower.state, .idle); XCTAssertFalse(store.showingWorkout)
         XCTAssertFalse(store.isDeletingData); XCTAssertFalse(store.isTransferringFiles)
         XCTAssertEqual(try store.container.mainContext.fetchCount(FetchDescriptor<StoredState>()), 0)
         XCTAssertFalse(FileManager.default.fileExists(atPath: recoveryDirectory.path))
@@ -234,7 +418,7 @@ import RowivoCore
         let plan = try XCTUnwrap(store.state.plan)
         let now = Date()
         let originalDate = now.addingTimeInterval(-86400)
-        var recording = PM5Recording(deviceID: UUID(), deviceName: "PM5 TEST")
+        var recording = RowerRecording(deviceID: UUID(), deviceName: "PM5 TEST")
         recording.receive(.init(date: originalDate, general: .init(elapsed: 0, distance: 0)), workoutElapsed: 0)
         recording.receive(.init(date: originalDate.addingTimeInterval(1), general: .init(elapsed: 1, distance: 4), heartRate: 130), workoutElapsed: 1)
         recording.breakContinuity(isGap: false) // A saved recording has no live sampling baseline.
@@ -276,7 +460,7 @@ import RowivoCore
         XCTAssertTrue(store.canTrain)
         // Corrections may also move a previously saved date forward, up to today.
         XCTAssertTrue(store.updateCompletionDate(healthy, to: now))
-        XCTAssertFalse(store.canTrain)
+        XCTAssertTrue(store.canTrain); XCTAssertTrue(store.requiresRecentTrainingConfirmation)
         XCTAssertEqual(store.state.completions[0].recordedAt, healthy.date)
         XCTAssertEqual(store.nextWorkout, next)
         XCTAssertEqual(store.state.plan, plan)
@@ -463,7 +647,7 @@ import RowivoCore
         XCTAssertEqual(third.state.completions.first?.note, "Comfortable")
         XCTAssertNil(third.state.clock)
         XCTAssertNotEqual(third.nextWorkout?.id, workout.id)
-        XCTAssertFalse(third.canTrain)
+        XCTAssertTrue(third.canTrain); XCTAssertTrue(third.requiresRecentTrainingConfirmation)
     }
 
     func testPartialSessionDoesNotCompleteWorkout() throws {
@@ -472,7 +656,7 @@ import RowivoCore
         XCTAssertTrue(store.complete(workout, seconds: 120, effort: 2, discomfort: false, note: "", manual: false))
         XCTAssertFalse(store.state.completions[0].finishedPlan)
         XCTAssertEqual(store.nextWorkout?.id, workout.id)
-        XCTAssertFalse(store.canTrain)
+        XCTAssertTrue(store.canTrain); XCTAssertTrue(store.requiresRecentTrainingConfirmation)
     }
 
     func testDuplicateCompletionAndStartingFutureWorkoutAreRejected() throws {
@@ -495,44 +679,44 @@ import RowivoCore
         let store = try RowivoStore(container: ModelContainer(for: StoredState.self, configurations: config))
         store.createProfile(.init(name: "Alex"), useTemplate: true)
         let workout = try XCTUnwrap(store.nextWorkout)
-        let device = PM5Device(id: UUID(), name: "PM5 TEST ONLY", signal: -40)
+        let device = RowerDevice(id: UUID(), name: "PM5 TEST ONLY", signal: -40)
         store.start(workout)
         let now = Date()
-        store.receivePM5(.init(date: now, general: .init(elapsed: 500, distance: 1500)), device: device)
-        store.receivePM5(.init(date: now.addingTimeInterval(1), general: .init(elapsed: 501, distance: 1504), pace: 125, strokeRate: 22, watts: 180, heartRate: 130), device: device)
+        store.receiveRower(.init(date: now, general: .init(elapsed: 500, distance: 1500)), device: device)
+        store.receiveRower(.init(date: now.addingTimeInterval(1), general: .init(elapsed: 501, distance: 1504), pace: 125, strokeRate: 22, watts: 180, heartRate: 130), device: device)
         store.toggleTimer() // Flushes the complete recording before presenting feedback.
         let reopened = try RowivoStore(container: ModelContainer(for: StoredState.self, configurations: config))
-        XCTAssertEqual(reopened.pm5Recording?.distance, 4)
-        XCTAssertEqual(reopened.pm5Recording?.samples.last?.watts, 180)
-        XCTAssertEqual(reopened.pm5.lockedDeviceID, device.id)
-        XCTAssertTrue(reopened.pm5Recording?.hasGaps == true)
+        XCTAssertEqual(reopened.rowerRecording?.distance, 4)
+        XCTAssertEqual(reopened.rowerRecording?.samples.last?.watts, 180)
+        XCTAssertEqual(reopened.rower.lockedDeviceID, device.id)
+        XCTAssertTrue(reopened.rowerRecording?.hasGaps == true)
         XCTAssertTrue(reopened.complete(workout, seconds: 60, effort: 2, discomfort: false, note: "Test", manual: false))
         let saved = try RowivoStore(container: ModelContainer(for: StoredState.self, configurations: config))
         XCTAssertEqual(saved.state.completions.first?.pm5?.distance, 4)
         XCTAssertEqual(saved.state.completions.first?.pm5?.samples.last?.heartRate, 130)
-        XCTAssertNil(saved.pm5Recording); XCTAssertNil(saved.state.currentPM5Recording)
+        XCTAssertNil(saved.rowerRecording); XCTAssertNil(saved.state.currentPM5Recording)
     }
 
     func testPM5RecordingIgnoresPausedPacketsDifferentDevicesAndDiscardedData() throws {
         let store = try makeStore()
         let workout = try XCTUnwrap(store.nextWorkout)
-        let device = PM5Device(id: UUID(), name: "PM5 TEST ONLY", signal: -40)
-        let other = PM5Device(id: UUID(), name: "PM5 OTHER TEST", signal: -40)
+        let device = RowerDevice(id: UUID(), name: "PM5 TEST ONLY", signal: -40)
+        let other = RowerDevice(id: UUID(), name: "PM5 OTHER TEST", signal: -40)
         let now = Date()
-        func feed(_ seconds: Double, device: PM5Device) {
-            store.receivePM5(.init(date: now.addingTimeInterval(seconds), general: .init(elapsed: seconds, distance: seconds * 4)), device: device)
+        func feed(_ seconds: Double, device: RowerDevice) {
+            store.receiveRower(.init(date: now.addingTimeInterval(seconds), general: .init(elapsed: seconds, distance: seconds * 4)), device: device)
         }
-        feed(0, device: device); XCTAssertNil(store.pm5Recording)
+        feed(0, device: device); XCTAssertNil(store.rowerRecording)
         store.start(workout)
         feed(1, device: device); feed(2, device: device)
-        feed(3, device: other); XCTAssertEqual(store.pm5Recording?.distance, 4)
+        feed(3, device: other); XCTAssertEqual(store.rowerRecording?.distance, 4)
         store.toggleTimer(); feed(4, device: device)
-        XCTAssertEqual(store.pm5Recording?.distance, 4)
+        XCTAssertEqual(store.rowerRecording?.distance, 4)
         XCTAssertFalse(store.complete(workout, seconds: 60, effort: 2, discomfort: false, note: "", manual: true))
-        store.discardTimer(); XCTAssertNil(store.pm5Recording); XCTAssertNil(store.state.currentPM5Recording)
+        store.discardTimer(); XCTAssertNil(store.rowerRecording); XCTAssertNil(store.state.currentPM5Recording)
         store.start(workout); feed(6, device: device); feed(7, device: device)
-        XCTAssertEqual(store.pm5Recording?.distance, 4)
-        XCTAssertEqual(store.pm5Recording?.samples.count, 2)
+        XCTAssertEqual(store.rowerRecording?.distance, 4)
+        XCTAssertEqual(store.rowerRecording?.samples.count, 2)
     }
 
     func testLegacyAppPayloadWithoutRecordingStillLoads() throws {

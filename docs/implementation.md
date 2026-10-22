@@ -1,6 +1,6 @@
 # Rowivo — Implementierungsstand
 
-Stand: 3. September 2026. Aktuelle Produktrichtung: manuelle Trainingsplanung. KI ist vorerst entfernt.
+Stand: 14. Oktober 2026. Aktuelle Produktrichtung: manuelle Trainingsplanung. Die experimentelle Jev-/TypeSafe-Anbindung ist vollständig aus dem aktiven Quellstand entfernt.
 
 ## Struktur
 
@@ -55,7 +55,7 @@ Core-Tests prüfen unter anderem freie Pläne, Grenzen, Intervallgruppen, unabh�
 
 Der aktuelle UI-Prüflauf deckt Einstieg mit leerem Plan, Erstellen und manuelles Protokollieren, deutsche Abschnitts- und Intervallbearbeitung, Abbrechen, Duplizieren, entfernte KI-Einstellungen, vollständige Tippflächen, Timer, PM5 und Dateidialoge ab. Die beiden zunächst gefundenen Probleme sind behoben: Zeitfelder behalten leere/ungültige Eingaben als Entwurf und speichern keine frühere Zahl; die Testauswahl ersetzt den vollständigen Feldinhalt. Der manuelle Protokollknopf liegt neben dem Start als eigener Bereich im festen Fußbereich und kann nicht vom Startknopf überlagert werden. Manuelle Einträge übernehmen außerdem die sekundengenaue Plandauer.
 
-Vor Veröffentlichung offen: physischer PM5-Test, echte Cloud-Provider und Wiederherstellung auf einem zweiten Gerät, größere Schriften und kleine Displays, Profiländerung, fachliche Prüfung der Trainingsregeln sowie App-Store-Unterlagen und zusätzliche Sprachen. Watch, HealthKit und PM5-Programmierung bleiben spätere Erweiterungen. KI ist pausiert.
+Vor Veröffentlichung offen: physischer PM5-Test, echte Cloud-Provider und Wiederherstellung auf einem zweiten Gerät, größere Schriften und kleine Displays, Profiländerung, fachliche Prüfung der Trainingsregeln sowie App-Store-Unterlagen und zusätzliche Sprachen. HealthKit, eigenständige Watch-Aufzeichnung und PM5-Programmierung bleiben spätere Erweiterungen; die erste Companion-Integration ist unten ergänzt. KI ist pausiert.
 
 
 ## Verifizierter Stand
@@ -134,3 +134,48 @@ Die feste Aktions- beziehungsweise Statusleiste in den Trainingsdetails verwende
 Grundlage: Apples [Scroll-View-Richtlinien](https://developer.apple.com/design/human-interface-guidelines/scroll-views), [ScrollEdgeEffectStyle](https://developer.apple.com/documentation/swiftui/scrolledgeeffectstyle) und [safeAreaBar](https://developer.apple.com/documentation/swiftui/view/safeareabar(edge:alignment:spacing:content:)).
 
 Simulator-Build und zwei bestehende UI-Abläufe erfolgreich (`build/RowivoNativeScrollEdges.xcresult`): deutscher Plan mit Scrollen und Zeilennavigation sowie vollständiger Bearbeitungsdialog mit Tastatur, Abbrechen, Speichern und erneutem Öffnen. Visuell geprüft: [Scrollränder im Plan](screenshots/scroll-edge-plan-de.png), [Dialogleiste](screenshots/scroll-edge-sheet-en.png) und [untere Trainingsleiste](screenshots/scroll-edge-bottom-bar-en.png). Signing, General und Projektdateien sind laut Prüfsummenvergleich unverändert. Der Material-Fallback ist mit iOS-18-Deployment-Target gebaut, jedoch nicht auf einem älteren Simulator ausgeführt.
+
+
+## Apple-Watch-Companion (4. September 2026)
+
+Die erste Watch-App ergänzt nächste Einheit, Timersteuerung, Abschnittsfortschritt, PM5-Livewerte und Feedback. Das iPhone bleibt die maßgebliche Datenquelle; bestätigte und auf eine konkrete Zustandsversion begrenzte Befehle verhindern verspätete Änderungen. Gemeinsames Nachrichtenformat und Präsentationshelfer liegen in RowivoCore beziehungsweise Shared. Vollständiger Umfang, Datenschutzverhalten bei Reset, Testnachweise und offene Hardware-Prüfungen: [Watch-Dokumentation](watch.md).
+
+Für diese Ergänzung wurde das Xcode-Projekt nach Abgleich, erfolgreichem Settings-Check und Sicherung gezielt um Watch-App und Watch-UI-Test-Target erweitert. Alle vorherigen Buildsettings, die iPhone-Info.plist und das vorhandene Rowivo-Scheme wurden erhalten. Die früheren Hinweise in diesem Dokument auf Änderungen ohne Projektgenerierung beziehen sich auf die jeweils damaligen iPhone-Ergänzungen.
+
+## Export-Compliance und Frankreich
+
+In den gepflegten Info.plist-Dateien für iPhone und Watch steht `ITSAppUsesNonExemptEncryption = false`. Die aktiven Targets verwenden Apple-Systemframeworks und das lokale RowivoCore-Paket ohne externe Abhängigkeiten. Eigene Kryptografie oder eingebundene Kryptografie-Bibliotheken sind nicht enthalten; der Security-Aufruf entfernt lediglich einen historischen Keychain-Eintrag. Diese Einordnung folgt Apples [Beschreibung des Schlüssels](https://developer.apple.com/documentation/bundleresources/information-property-list/itsappusesnonexemptencryption) und der [Dokumentationstabelle](https://developer.apple.com/help/app-store-connect/reference/app-information/export-compliance-documentation-for-encryption) für Verschlüsselung innerhalb des Apple-Betriebssystems.
+
+Die Angabe ist ab einem neu erstellten und hochgeladenen Build enthalten und erspart die wiederkehrende Export-Compliance-Abfrage. Bereits hochgeladene Builds werden dadurch nicht geändert. Bei späteren Änderungen an Kryptografie oder eingebundenen Bibliotheken wird die Einordnung erneut geprüft. `project.yml` referenziert beide gepflegten Plist-Dateien; eine Projektgenerierung ist nicht erforderlich.
+
+Frankreich soll nach Fertigstellung der französischen Übersetzung angeboten werden. Die tatsächliche Länderfreigabe erfolgt separat unter App Store Connect → Pricing and Availability → App Availability. Es wurde keine Store-Verfügbarkeit geändert. Für ausschließlich systemeigene Verschlüsselung nennt Apple keine zusätzliche Verschlüsselungsdokumentation in App Store Connect, auch bei Vertrieb in Frankreich.
+
+## Allgemeine Geräteanbindung – 4. September 2026
+
+`RowerConnection` verbindet Concept2 PM5 oder FTMS-Rudergeräte. Ein FTMS-Kandidat wird erst nach Prüfung der notify-fähigen Rower-Data-Characteristic akzeptiert. PM5 hat bei Geräten mit beiden Diensten Vorrang. FTMS erhält keine Control-Point-Befehle; Trainingsprogramme und Widerstand bleiben am Gerät. Gemeinsame `RowerSnapshot`-/`RowerRecording`-Modelle transportieren optionale Messwerte bis in iPhone, Watch, lokale Speicherung und CSV.
+
+FTMS-Decoder: Flags, variable Feldbreiten, Little Endian, halbe Schläge/min, vorzeichenbehaftete Leistung, optionale Zähler und vollständige mehrteilige Records. Fehlende Messwerte bleiben leer. Auch eine reine Schlagdaten-Aufzeichnung ist speicherbar. Distanz/Zeitsummen verwenden ausschließlich empfangene Zähleränderungen während der laufenden Einheit. Fehlende Zeit wird nicht aus der App-Uhr ergänzt; Durchschnittspace entfällt bei unvollständigen Zählerpaaren, auch zwischen den auf eine Sekunde begrenzten gespeicherten Messpunkten.
+
+Dateiformat 5 benennt CSV-Datei und Gerätespalten allgemein (`rower_samples.csv`, `device_*`) und ergänzt Schlaganzahl sowie `source = ftms`. Die historischen JSON-Schlüssel bleiben erhalten, frühere PM5-Aufzeichnungen und Backups 1–4 sind lesbar. Die Oberfläche und Bluetooth-Freigabe sind auf Deutsch und Englisch angepasst. Bestehendes Xcode-Projekt weiterverwendet; nur der Bluetooth-Erklärungstext wurde in Projekt und Vorlage synchron aktualisiert. Signing, General, Buildnummer und Verschlüsselungsangaben bleiben erhalten. Der Settings-Abgleich ist erfolgreich.
+
+Prüfung: 36 Core-Tests erfolgreich (darunter neun neue FTMS-/Kompatibilitätstests); 44 App-/Dateitests und der deutsche Geräteverbindungs-UI-Test erfolgreich (`build/RowerValidation2.xcresult`). Der UI-Screenshot ist visuell geprüft: [Geräteverbindung](screenshots/rower-connection-de.png). Konkrete FTMS-Modelle sowie der physische Funk-/Hintergrundtest bleiben noch zu prüfen; [Anleitung und Protokollquellen](rowers.md).
+
+Abschlussprüfung: Watch-Trainingsansicht und Bedienelemente erfolgreich (`build/RowerWatchUI.xcresult`), beide Apps bauen. Nach den letzten Änderungen an Zählerpaarung, Verlaufsgrafik und Bluetooth-Erklärungstext sind die Archivtests nochmals erfolgreich (`build/RowerFinalArchive.xcresult`).
+
+
+## Profilbearbeitung und bestätigbarer Trainingshinweis – 4. September 2026
+
+`updateProfile` speichert ausschließlich das Profil, prüft einen unveränderten Ausgangsdatensatz und validiert den Entwurf. Name, Ziel, Erfahrung und Standarddauer sind in einem nativen Form-Sheet bearbeitbar. Die bisherige Anzahl der Vorlagen-Einheiten bleibt erhalten; vorhandene Pläne werden nicht neu erzeugt. Planrevisionen, Aufzeichnungen, Gerätemesswerte und laufender Timer bleiben erhalten. Der bestehende Speicherpfad berücksichtigt Profiländerungen für Cloud-Kopien und invalidiert veraltete Watch-Befehle. Ein unveränderter Speichervorgang ist ein No-op.
+
+Der bisherige kalendarische Ruhetag blockiert das Training nicht mehr. Bei einer Aufzeichnung heute oder gestern erscheint vor dem Start ein nativer Bestätigungsdialog. „Trotzdem starten“ gilt nur für diesen Start und den angezeigten Datenstand. iPhone-Dialoge und Watch-Befehle tragen dessen Control-Token; Änderungen in der Zwischenzeit verlangen eine neue Entscheidung. Die Watch sendet dazu ein optionales Bestätigungsfeld. Alte Clients ohne dieses Feld können keine bestätigungspflichtige Einheit starten. Ein bestätigter laufender Timer bleibt pausierbar, fortsetzbar und speicherbar, auch nach App-Neustart. Ein weiterer neuer Start verlangt erneut eine Bestätigung. Der separate Beschwerden-Check-in bleibt bestehen.
+
+Der Hinweis ist eine einfache Kalenderheuristik und keine medizinische Bewertung der Trainingsbereitschaft. „Heute“ zeigt keine gesperrte Freigabefrist mehr. Nachträge bleiben Dokumentation vergangener Einheiten; sie bestätigen keinen neuen Trainingsstart. Buildnummer, Projektgenerierung und Veröffentlichung wurden hierfür nicht angefasst.
+
+Der [Testleitfaden](testleitfaden-testflight.md) trennt den vorhandenen TestFlight-Build von den noch zu veröffentlichenden Änderungen. Er ist für die Kontrolle nach Lorenz' erstem echten Training gedacht; der Hardwaretest wird nicht durch Simulatorergebnisse als erledigt gewertet.
+
+
+Prüfstand: 36 Core-Tests und 48 App-/Dateitests erfolgreich (`profile-core-output.log`, `build/ProfileTrainingRules.xcresult`). Die App-Tests prüfen Profiländerung bei laufendem Training, Wiederöffnen der Datenbank, Erhalt von Plan/Verlauf/Timer, ungültige und veraltete Entwürfe sowie bestätigten Start, Pausieren, Neustart und Speichern. Watch-Startbefehle benötigen die ausdrückliche Entscheidung; Wiederholung und Beschwerden-Check-in sind geprüft.
+
+Der Profil-UI-Test ist erfolgreich. Der erste Start-UI-Test hatte eine falsche Test-ID für den vorhandenen Pause-Button; der korrigierte Test bestätigt Abbrechen, tatsächlichen Start und Pause auf Deutsch (`build/RecentTrainingUI.xcresult`). Visuell geprüft: [Profil bearbeiten](screenshots/profile-editor-en.png), [weiteres Training bestätigen](screenshots/recent-training-de.png). iPhone und Watch bauen erfolgreich.
+
+Watch-Abschlussprüfung erfolgreich: Der native Hinweis ist erreichbar, der Start bleibt wählbar und Abbrechen verändert die Einheit nicht (`build/RecentTrainingWatchUI.xcresult`). Der tatsächliche bestätigte Start bis zum Speichern ist zusätzlich im iPhone-Store mit Watch-Befehlen geprüft.

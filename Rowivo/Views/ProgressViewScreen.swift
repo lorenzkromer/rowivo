@@ -1,4 +1,5 @@
 import SwiftUI
+import CoreText
 import Charts
 import RowivoCore
 
@@ -95,6 +96,8 @@ struct RecordedWorkoutCard: View {
     let context: String
     var showName = true
     var edit: () -> Void
+    @State private var pdf: WorkoutPDFFile?
+    @State private var pdfError: String?
     private var plannedWorkout: Workout? { store.state.plan?.workouts.first { $0.id == log.workoutID } }
 
     var body: some View {
@@ -131,8 +134,8 @@ struct RecordedWorkoutCard: View {
                 if !log.note.isEmpty { Text(log.note).font(.subheadline).foregroundStyle(RowivoStyle.muted) }
                 if let recording = log.pm5 {
                     Divider()
-                    PM5RecordingSummary(recording: recording)
-                    NavigationLink("View PM5 recording") { PM5RecordingDetailView(recording: recording) }
+                    RowerRecordingSummary(recording: recording)
+                    NavigationLink("View device recording") { RowerRecordingDetailView(recording: recording) }
                         .font(.subheadline.weight(.semibold)).accessibilityIdentifier("pm5.\(context)")
                 }
                 Button(action: edit) {
@@ -141,11 +144,17 @@ struct RecordedWorkoutCard: View {
                         .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading).contentShape(Rectangle())
                 }.buttonStyle(.plain).disabled(store.state.clock != nil)
                     .accessibilityIdentifier("\(context).edit-recording.\(log.id.uuidString)")
+                Button("Share as PDF", systemImage: "square.and.arrow.up") {
+                    do { pdf = WorkoutPDFFile(url: try WorkoutPDF.create(log, planned: plannedWorkout)) }
+                    catch { pdfError = error.localizedDescription }
+                }.font(.subheadline.weight(.semibold)).frame(minHeight: 44)
+                    .accessibilityIdentifier("\(context).share-pdf.\(log.id.uuidString)")
+                if let pdfError { Text(pdfError).font(.caption).foregroundStyle(RowivoStyle.clay) }
                 if store.state.clock != nil {
                     Text("Finish your active session before editing recorded workouts.").font(.caption).foregroundStyle(RowivoStyle.muted)
                 }
             }
-        }
+        }.sheet(item: $pdf) { WorkoutPDFShare(url: $0.url) }
     }
 }
 
@@ -240,9 +249,12 @@ struct RecordedWorkoutEditorView: View {
                 }
                 if completion.pm5 != nil {
                     Section {
-                        Text("PM5 measurements remain as recorded. Changes here correct your session details, including its duration.")
+                        Text("Device measurements remain as recorded. Changes here correct your session details, including its duration.")
                             .font(.footnote)
                     }
+                }
+                Section {
+                    DeleteRecordedWorkoutButton(completion: completion, context: "recording.editor") { dismiss() }
                 }
                 if let message = validation ?? failure {
                     Section { Text(message).foregroundStyle(RowivoStyle.clay).accessibilityIdentifier("recording.editor.error") }
@@ -266,10 +278,115 @@ struct RecordedWorkoutEditorView: View {
                     }
                     ToolbarItemGroup(placement: .keyboard) {
                         Spacer()
-                        Button("Done") { focusedField = nil }.accessibilityIdentifier("recording.editor.keyboard-done")
+                        Button("Done") { focusedField = nil }.padding(.vertical, 8).accessibilityIdentifier("recording.editor.keyboard-done")
                     }
                 }
                 .onSubmit { focusedField = nil }
         }.interactiveDismissDisabled()
+    }
+}
+
+private struct DeleteRecordedWorkoutButton: View {
+    @Environment(RowivoStore.self) private var store
+    let completion: WorkoutCompletion
+    let context: String
+    var onDeleted: () -> Void = {}
+    @State private var confirming = false
+    @State private var failure: String?
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Button(role: .destructive) { confirming = true } label: {
+                Label("Delete session", systemImage: "trash")
+                    .font(.subheadline.weight(.semibold))
+                    .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                    .contentShape(Rectangle())
+            }.buttonStyle(.plain).foregroundStyle(.red)
+                .disabled(store.state.clock != nil || store.isTransferringFiles || store.isDeletingData)
+                .accessibilityIdentifier("\(context).delete-recording.\(completion.id.uuidString)")
+            if let failure { Text(failure).font(.footnote).foregroundStyle(RowivoStyle.clay) }
+        }
+        .alert("Delete this saved session?", isPresented: $confirming) {
+            Button("Cancel", role: .cancel) { }
+            Button("Delete session", role: .destructive) {
+                if store.deleteCompletion(completion) { onDeleted() }
+                else { failure = store.errorMessage; store.errorMessage = nil }
+            }.accessibilityIdentifier("recording.delete.confirm")
+        } message: {
+            Text(completion.displayName + " · " + completion.date.formatted(date: .abbreviated, time: .shortened)
+                 + "\n\n" + localized("This removes this recording and its device data from Rowivo. The planned workout stays available. Existing Apple Health entries and exported copies are kept. This cannot be undone."))
+        }
+    }
+}
+
+private struct WorkoutPDFFile: Identifiable { let id = UUID(); let url: URL }
+private struct WorkoutPDFShare: UIViewControllerRepresentable {
+    let url: URL
+    func makeUIViewController(context: Context) -> UIActivityViewController {
+        let controller = UIActivityViewController(activityItems: [url], applicationActivities: nil)
+        controller.completionWithItemsHandler = { _, _, _, _ in
+            try? FileManager.default.removeItem(at: url.deletingLastPathComponent())
+        }
+        return controller
+    }
+    func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
+}
+
+@MainActor enum WorkoutPDF {
+    static func create(_ log: WorkoutCompletion, planned: Workout?) throws -> URL {
+        let text = NSMutableAttributedString()
+        let paragraph = NSMutableParagraphStyle(); paragraph.paragraphSpacing = 10; paragraph.lineSpacing = 3
+        func append(_ value: String, size: CGFloat = 12, bold: Bool = false) {
+            text.append(NSAttributedString(string: value + "\n", attributes: [
+                .font: bold ? UIFont.boldSystemFont(ofSize: size) : UIFont.systemFont(ofSize: size),
+                .foregroundColor: UIColor(red: 0.07, green: 0.20, blue: 0.20, alpha: 1), .paragraphStyle: paragraph]))
+        }
+        append("rowivo", size: 30, bold: true)
+        append(log.displayName, size: 21, bold: true)
+        append(log.date.formatted(date: .complete, time: .shortened))
+        append(localized("Actual duration") + ": " + durationText(log.durationSeconds), size: 16, bold: true)
+        if let planned { append(localized("Planned duration") + ": " + durationText(planned.totalSeconds)) }
+        append(String(format: String(localized: "Reported effort: %lld/5"), Int64(log.effort)))
+        append(localized(log.manuallyRecorded ? "Entered manually" : "Timed with Rowivo"))
+        if !log.finishedPlan { append(localized("Partial session")) }
+        if log.discomfort { append(localized("Discomfort reported")) }
+        if log.editedAt != nil { append(localized("Edited")) }
+        if let device = log.pm5 {
+            append(device.deviceName, size: 16, bold: true)
+            if let meters = device.measuredDistance { append(localized("Meters") + ": " + meters.formatted(.number.precision(.fractionLength(1)))) }
+            if let seconds = device.measuredTime { append(localized("Device rowing time") + ": " + clockText(Int(seconds))) }
+            if let pace = device.averagePace { append(localized("Average pace") + ": " + clockText(Int(pace)) + " /500 m") }
+            if device.hasGaps { append(localized("The recording contains gaps. Device totals may be incomplete.")) }
+            append(localized("Device measurements are separate from the app timer."))
+        }
+        if !log.note.isEmpty { append(localized("Notes"), size: 16, bold: true); append(log.note) }
+        if let planned {
+            append(localized("Planned workout"), size: 16, bold: true)
+            for step in planned.segments { append(localized(step.kind.rawValue) + " · " + durationText(step.seconds)) }
+        }
+        let renderer = UIGraphicsPDFRenderer(bounds: CGRect(x: 0, y: 0, width: 595, height: 842))
+        let framesetter = CTFramesetterCreateWithAttributedString(text)
+        let data = renderer.pdfData { context in
+            var offset = 0; var page = 0
+            while offset < text.length {
+                context.beginPage(); page += 1
+                let cg = context.cgContext
+                cg.saveGState(); cg.textMatrix = .identity
+                cg.translateBy(x: 0, y: 842); cg.scaleBy(x: 1, y: -1)
+                let path = CGPath(rect: CGRect(x: 44, y: 60, width: 507, height: 738), transform: nil)
+                let frame = CTFramesetterCreateFrame(framesetter, CFRange(location: offset, length: 0), path, nil)
+                CTFrameDraw(frame, cg)
+                let visible = CTFrameGetVisibleStringRange(frame)
+                cg.restoreGState()
+                ("Rowivo · " + String(page) as NSString).draw(at: CGPoint(x: 44, y: 804), withAttributes: [.font: UIFont.systemFont(ofSize: 10), .foregroundColor: UIColor.secondaryLabel])
+                guard visible.length > 0 else { break }
+                offset += visible.length
+            }
+        }
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent("Rowivo-PDF-" + UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let formatter = DateFormatter(); formatter.locale = Locale(identifier: "en_US_POSIX"); formatter.dateFormat = "yyyy-MM-dd"
+        let url = directory.appendingPathComponent("Rowivo-" + formatter.string(from: log.date) + ".pdf")
+        try data.write(to: url, options: .atomic)
+        return url
     }
 }

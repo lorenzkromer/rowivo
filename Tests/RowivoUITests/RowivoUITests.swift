@@ -2,6 +2,111 @@ import XCTest
 
 @MainActor final class RowivoUITests: XCTestCase {
     override func setUpWithError() throws { continueAfterFailure = false }
+    func testSavedSessionDeletionOnlyInEditorWithConfirmation() {
+        let app = launch(seed: true, german: true)
+        app.buttons["dashboard.workout"].tap()
+        app.buttons["workout.manual"].tap()
+        reveal(app.buttons["feedback.save"], in: app); app.buttons["feedback.save"].tap()
+        let cardDelete = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "workout.delete-recording.")).firstMatch
+        let edit = app.buttons["workout.edit-recording"]
+        XCTAssertTrue(edit.waitForExistence(timeout: 5))
+        XCTAssertFalse(cardDelete.exists)
+        reveal(edit, in: app); edit.tap()
+        XCTAssertTrue(app.textFields["recording.editor.name"].waitForExistence(timeout: 5))
+        let delete = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "recording.editor.delete-recording.")).firstMatch
+        reveal(delete, in: app); delete.tap()
+        let alert = app.alerts["Gespeicherte Einheit löschen?"]
+        XCTAssertTrue(alert.waitForExistence(timeout: 5))
+        capture(app, "Delete saved session from editor German")
+        alert.buttons["Abbrechen"].tap()
+        XCTAssertTrue(delete.exists)
+        delete.tap()
+        app.alerts.buttons["recording.delete.confirm"].firstMatch.tap()
+        XCTAssertTrue(app.buttons["workout.start"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["workout.start"].isEnabled)
+        XCTAssertFalse(edit.exists)
+    }
+
+    func testPhoneStartFinishAndPDFShare() {
+        let app = launch(seed: true, german: true)
+        app.buttons["dashboard.workout"].tap()
+        app.buttons["workout.start"].tap()
+        XCTAssertTrue(app.buttons["workout.end"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["workout.end"].isHittable)
+        capture(app, "Two progress rings German")
+        app.buttons["workout.end"].tap()
+        app.buttons["Teil-Einheit speichern"].tap()
+        let save = app.buttons["feedback.save"]
+        reveal(save, in: app); save.tap()
+        let share = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "workout.share-pdf.")).firstMatch
+        XCTAssertTrue(share.waitForExistence(timeout: 5)); reveal(share, in: app); share.tap()
+        capture(app, "Workout PDF share German")
+    }
+
+    func testNativeCalendarEditorCanBeCancelled() {
+        let app = launch(seed: true)
+        app.buttons["dashboard.workout"].tap()
+        let calendar = app.buttons["workout.calendar"]
+        reveal(calendar, in: app); calendar.tap()
+        XCTAssertTrue(app.buttons["cancel-button"].waitForExistence(timeout: 5))
+        capture(app, "Native workout calendar")
+        app.buttons["cancel-button"].tap()
+        XCTAssertTrue(app.buttons["workout.start"].waitForExistence(timeout: 5))
+    }
+
+    func testProfileCanBeEditedCancelledAndReopened() {
+        let app = launch(seed: true)
+        app.buttons["settings.open"].tap()
+        reveal(app.buttons["profile.edit"], in: app)
+        app.buttons["profile.edit"].tap()
+        let name = app.textFields["profile.editor.name"]
+        XCTAssertTrue(name.waitForExistence(timeout: 5))
+        XCTAssertEqual(name.value as? String, "Alex")
+        replaceText(in: name, with: "Robin\n")
+        app.buttons["profile.editor.cancel"].tap()
+        app.buttons["profile.edit"].tap()
+        XCTAssertEqual(name.value as? String, "Alex")
+        replaceText(in: name, with: "Robin\n")
+        app.buttons["profile.editor.goal"].tap(); app.buttons["Build endurance"].tap()
+        app.buttons["profile.editor.experience"].tap(); app.buttons["Getting back into it"].tap()
+        app.buttons["profile.editor.duration"].tap(); app.buttons["40 min"].tap()
+        capture(app, "Profile editor English")
+        app.buttons["profile.editor.save"].tap()
+        XCTAssertTrue(app.buttons["profile.edit"].waitForExistence(timeout: 5))
+        app.buttons["profile.edit"].tap()
+        XCTAssertEqual(name.value as? String, "Robin")
+        XCTAssertTrue(app.buttons["profile.editor.goal"].label.contains("Build endurance"))
+        XCTAssertTrue(app.buttons["profile.editor.experience"].label.contains("Getting back into it"))
+        XCTAssertTrue(app.buttons["profile.editor.duration"].label.contains("40 min"))
+        app.buttons["profile.editor.cancel"].tap()
+        app.buttons["Done"].tap()
+        XCTAssertTrue(app.staticTexts["Ready when you are, Robin."].exists)
+    }
+
+    func testRecentTrainingCanBeCancelledThenExplicitlyStartedInGerman() {
+        let app = launch(seed: true, german: true)
+        app.buttons["dashboard.workout"].tap(); app.buttons["workout.manual"].tap()
+        reveal(app.buttons["feedback.save"], in: app); app.buttons["feedback.save"].tap()
+        // Return to Today and open the next planned session.
+        app.navigationBars.buttons.element(boundBy: 0).tap()
+        app.swipeDown()
+        let next = app.buttons["dashboard.workout"]
+        XCTAssertTrue(next.waitForExistence(timeout: 5)); next.tap()
+        XCTAssertTrue(app.buttons["workout.start"].isEnabled)
+        app.buttons["workout.start"].tap()
+        let alert = app.alerts["Weitere Einheit starten?"]
+        XCTAssertTrue(alert.waitForExistence(timeout: 5))
+        capture(app, "Recent training confirmation German")
+        alert.buttons["Abbrechen"].tap()
+        XCTAssertTrue(app.buttons["workout.start"].exists)
+        XCTAssertFalse(app.buttons["workout.pause"].exists)
+        app.buttons["workout.start"].tap()
+        alert.buttons["Trotzdem starten"].tap()
+        XCTAssertTrue(app.buttons["workout.pause"].waitForExistence(timeout: 5))
+        app.buttons["workout.pause"].tap()
+        XCTAssertTrue(app.buttons["workout.pause"].label.contains("Weiter"))
+    }
+
     func testCompletedSessionCanBeFullyEditedCancelledAndReopened() {
         let app = launch(seed: true)
         app.buttons["dashboard.workout"].tap(); app.buttons["workout.manual"].tap()
@@ -418,16 +523,17 @@ import XCTest
         XCTAssertTrue(copy.exists)
     }
 
-    func testPM5ConnectionSetupAndSimulatorStateInGerman() {
+    func testRowerConnectionSetupAndSimulatorStateInGerman() {
         let app = launch(seed: true, german: true)
         let connection = app.buttons["pm5.open"]
         reveal(connection, in: app); connection.tap()
         XCTAssertTrue(app.buttons["pm5.search"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["pm5.simulator"].exists)
+        XCTAssertTrue(app.staticTexts["Concept2 PM5 und FTMS-Rudergeräte"].exists)
         app.buttons["pm5.search"].tap()
         XCTAssertEqual(app.staticTexts["pm5.status"].label, "Bluetooth nicht verfügbar")
         XCTAssertFalse(app.buttons["pm5.disconnect"].exists)
-        capture(app, "PM5 connection German")
+        capture(app, "Rower connection German")
         app.buttons["Fertig"].tap()
         app.swipeDown()
         app.buttons["dashboard.workout"].tap()

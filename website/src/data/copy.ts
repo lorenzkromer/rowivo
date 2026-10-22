@@ -66,15 +66,8 @@ export const copy = {
     privacyPoints: [
       'Exportiere deine Daten als CSV oder als wiederherstellbare Trainingssicherung.',
       'Wähle selbst, ob du Sicherungen in einem eigenen Dateien- oder Cloud-Ordner ablegst.',
-      'Entscheide selbst, ob du die optionalen Jev-Vorschläge nutzt.',
     ],
     privacyLink: 'Mehr zum Datenschutz',
-    jevLabel: 'OPTIONAL: JEV-VORSCHLÄGE',
-    jevHeading: 'Heute lieber etwas kürzer?',
-    jevText:
-      'Jev kann anhand deiner Rückmeldung eine kürzere oder leichtere nächste Einheit vorschlagen. Du siehst die Änderung zuerst und entscheidest, ob du sie übernimmst.',
-    jevDetail:
-      'Diese experimentelle Funktion benötigt einen eigenen TypeSafe-Zugang. Ausgewählte Trainingsangaben werden erst auf deine Anfrage an TypeSafe gesendet. Jev erstellt keine vollständigen Trainingspläne und ersetzt keine medizinische Beratung.',
     faqLabel: 'GUT ZU WISSEN',
     faqHeading: 'Noch eine Frage?',
     questions: [
@@ -96,14 +89,14 @@ export const copy = {
       ],
       [
         'Brauche ich einen KI-Zugang?',
-        'Nur für die optionalen Jev-Vorschläge benötigst du einen eigenen TypeSafe-API-Schlüssel. Du hinterlegst ihn in den In-App-Einstellungen; er wird im Schlüsselbund des iPhones gespeichert. Manuelles Planen und Training funktionieren ohne diesen Zugang.',
+        'Nein. Rowivo benötigt keinen KI-Zugang und keinen API-Schlüssel. Du stellst deine Trainingseinheiten selbst zusammen und kannst sie jederzeit im Plan bearbeiten.',
       ],
     ],
     contactLabel: 'DIREKT IN KONTAKT',
     contactHeading: 'Wir hören zu.',
     contactText: 'Eine Frage, eine Idee oder Feedback zu Rowivo? Schreib uns.',
     contactHint:
-      'Bitte sende keine API-Schlüssel oder sensiblen Gesundheitsdaten per E-Mail.',
+      'Bitte sende keine sensiblen Gesundheitsdaten per E-Mail.',
     screenshotNote:
       'App-Einblicke mit Beispieldaten. Darstellung und Funktionsumfang können sich bis zur Veröffentlichung ändern.',
   },
@@ -174,15 +167,8 @@ export const copy = {
     privacyPoints: [
       'Export your data as CSV files or a restorable training backup.',
       'Choose whether to save backups to your own Files or cloud folder.',
-      'Decide whether to use the optional Jev suggestions.',
     ],
     privacyLink: 'Read our privacy notice',
-    jevLabel: 'OPTIONAL: JEV SUGGESTIONS',
-    jevHeading: 'A little shorter today?',
-    jevText:
-      'Based on your feedback, Jev can suggest a shorter or easier next session. You preview the change and decide whether to apply it.',
-    jevDetail:
-      'This experimental feature requires your own TypeSafe access. Selected training information is sent to TypeSafe only when you request a suggestion. Jev does not create complete training plans or replace medical advice.',
     faqLabel: 'GOOD TO KNOW',
     faqHeading: 'Anything else?',
     questions: [
@@ -204,14 +190,14 @@ export const copy = {
       ],
       [
         'Do I need an AI account?',
-        'Only the optional Jev suggestions require your own TypeSafe API key. Enter it in the in-app settings; it is stored in your iPhone’s keychain. Manual planning and workouts work without this access.',
+        'No. Rowivo requires no AI account or API key. You create your own workouts and can edit them in the planner.',
       ],
     ],
     contactLabel: 'GET IN TOUCH',
     contactHeading: 'We’re listening.',
     contactText: 'A question, an idea or feedback on Rowivo? Drop us a line.',
     contactHint:
-      'Please do not send API keys or sensitive health information by email.',
+      'Please do not send sensitive health information by email.',
     screenshotNote:
       'App previews use sample data. Appearance and features may change before release.',
   },
