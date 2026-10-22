@@ -56,6 +56,10 @@ Rowivo führt den Ablauf am iPhone. Die App programmiert das Training noch nicht
 
 FTMS-Geräte werden beim Verbinden auf Ruderdaten geprüft. Bluetooth allein garantiert keine Kompatibilität. Fehlende Werte bleiben leer. Die Bluetooth-Implementierung ist gebaut und mit Protokolldaten geprüft; einzelne FTMS-Modelle brauchen noch den Hardwaretest. Details: [Unterstützte Anbindungen und Prüfanleitung](docs/rowers.md). Der vollständige Funk-, Hintergrund- und Sperrbildschirmtest am echten iPhone mit PM5 steht noch aus: [PM5-Prüfanleitung](docs/pm5.md).
 
+## Ruderreise
+
+Unter **Heute → Deine Ruderreise** oder **Fortschritt → Deine Ruderreise** liegt eine ruhige Reise über den Morgensee. Gemessene, gespeicherte Gerätemeter erschließen Schilfbucht (1.000 m), Waldanleger (3.500 m) und Insellichtung (8.500 m). Frühere Geräteaufzeichnungen und gespeicherte Teileinheiten zählen mit. Während des Trainings lässt sich zwischen **Landschaft** und **Messwerte** wechseln. Die Landschaftsvorschau simuliert eine Fahrt, ohne Trainingsdaten zu verändern. Regeln und Prüfung: [Ruderreise](docs/rowing-journey.md).
+
 ## Apple Watch
 
 Die Companion-App zeigt die nächste Einheit, Abschnittszeiten und verfügbare Gerätemesswerte. Start, Pause, Fortsetzen und Feedback funktionieren direkt am Handgelenk; das gekoppelte iPhone bestätigt die Aktionen und speichert die Aufzeichnung. Ohne Verbindung sind Änderungen gesperrt. Installation und Status stehen unter **Einstellungen → Apple Watch**; für die Entwicklung gibt es das Scheme **RowivoWatch** (watchOS 11+). Watch-Pulsmessung bleibt offen. Der optionale native Trainingsmodus nutzt HealthKit, um die Watch-Session aktiv zu halten und auf Wunsch in Health zu speichern. Der vollständige Steuerungs- und Speicherablauf ist zwischen gekoppelten Simulatoren erfolgreich geprüft; der Test mit echter Watch und PM5 bleibt offen. Details: [Apple-Watch-Integration](docs/watch.md).

@@ -1,6 +1,6 @@
 # Ruderreise: Landschaft, Etappen und freischaltbare Orte
 
-Stand: 21. Oktober 2026. Planungsentwurf, noch nicht implementiert.
+Stand: 21. Oktober 2026. Ursprünglicher Planungsentwurf. Die erste Umsetzung und die dabei konkretisierten Regeln stehen in [rowing-journey.md](rowing-journey.md).
 
 ## Ausgangspunkt und bestätigte Richtung
 

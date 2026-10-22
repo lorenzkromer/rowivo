@@ -5,6 +5,34 @@ import RowivoCore
 @testable import Rowivo
 
 @MainActor final class RowivoTests: XCTestCase {
+    func testJourneyCreditsOnlySavedMetersAndSurvivesBackupWithoutDuplicateCredits() async throws {
+        let store = try makeStore()
+        let workout = try XCTUnwrap(store.nextWorkout)
+        let device = RowerDevice(id: UUID(), name: "Journey fixture", signal: -40)
+        store.start(workout)
+        let start = Date()
+        for second in 0...100 {
+            store.receiveRower(RowerSnapshot(date: start.addingTimeInterval(Double(second)), elapsed: Double(second), distance: 200 + Double(second) * 5), device: device)
+        }
+        XCTAssertEqual(store.rowerRecording?.measuredDistance, 500)
+        XCTAssertEqual(RowingJourney(completions: store.state.completions).meters, 0)
+        store.prepareReflection()
+        XCTAssertTrue(store.complete(workout, seconds: 100, effort: 2, discomfort: false, note: "", manual: false))
+        XCTAssertEqual(RowingJourney(completions: store.state.completions).meters, 500)
+        XCTAssertFalse(store.complete(workout, seconds: 100, effort: 2, discomfort: false, note: "", manual: false))
+        XCTAssertEqual(RowingJourney(completions: store.state.completions).meters, 500)
+        let archive = try TrainingArchive.decode(TrainingArchive(state: store.state).encoded())
+        let restored = await store.restoreTraining(archive)
+        XCTAssertTrue(restored)
+        XCTAssertEqual(RowingJourney(completions: store.state.completions).meters, 500)
+        let saved = try XCTUnwrap(store.state.completions.first)
+        var edit = RecordedWorkoutEdit(saved); edit.durationSeconds = 120; edit.note = "Edited"
+        XCTAssertTrue(store.updateCompletion(saved, with: edit))
+        XCTAssertEqual(RowingJourney(completions: store.state.completions).meters, 500)
+        XCTAssertTrue(store.deleteCompletion(try XCTUnwrap(store.state.completions.first)))
+        XCTAssertEqual(RowingJourney(completions: store.state.completions).meters, 0)
+    }
+
     func testDeleteSavedCompletionPersistsAndReopensPlanWithoutRemovingOtherRecords() throws {
         let store = try makeStore()
         let plan = try XCTUnwrap(store.state.plan)
